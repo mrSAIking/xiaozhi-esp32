@@ -532,10 +532,16 @@ void Application::InitializeProtocol() {
         if (strcmp(type->valuestring, "tts") == 0) {
             auto state = cJSON_GetObjectItem(root, "state");
             if (strcmp(state->valuestring, "start") == 0) {
-                Schedule([this]() {
-                    aborted_ = false;
-                    SetDeviceState(kDeviceStateSpeaking);
-                });
+    Schedule([this]() {
+        // Ignore delayed AI speech while MP3 music is playing.
+        if (GetDeviceState() == kDeviceStateMusicPlaying) {
+            ESP_LOGI(TAG, "Ignoring TTS start during music playback");
+            return;
+        }
+
+        aborted_ = false;
+        SetDeviceState(kDeviceStateSpeaking);
+    });
             } else if (strcmp(state->valuestring, "stop") == 0) {
                 Schedule([this]() {
                     if (GetDeviceState() == kDeviceStateSpeaking) {
