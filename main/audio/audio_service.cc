@@ -306,6 +306,8 @@ void AudioService::AudioOutputTask() {
 
         auto task = std::move(audio_playback_queue_.front());
         audio_playback_queue_.pop_front();
+        // A buffer is now in flight, even though it is no longer queued.
+        audio_output_busy_ = true;
         audio_queue_cv_.notify_all();
         lock.unlock();
 
@@ -315,6 +317,12 @@ void AudioService::AudioOutputTask() {
             codec_->EnableOutput(true);
         }
         codec_->OutputData(task->pcm);
+
+        {
+            std::lock_guard<std::mutex> output_lock(audio_queue_mutex_);
+            audio_output_busy_ = false;
+            audio_queue_cv_.notify_all();
+        }
 
         /* Update the last output time */
         last_output_time_ = std::chrono::steady_clock::now();
@@ -774,6 +782,41 @@ void AudioService::CheckAndUpdateAudioPowerState() {
     if (!codec_->input_enabled() && !codec_->output_enabled()) {
         esp_timer_stop(audio_power_timer_);
     }
+}
+
+bool AudioService::PushMusicPcm(std::vector<int16_t>&& pcm) {
+    if (pcm.empty()) {
+        return true;
+    }
+
+    auto task = std::make_unique<AudioTask>();
+    task->type = kAudioTaskTypeDecodeToPlaybackQueue;
+    task->timestamp = 0;
+    task->pcm = std::move(pcm);
+
+    std::unique_lock<std::mutex> lock(audio_queue_mutex_);
+    audio_queue_cv_.wait(lock, [this]() {
+        return service_stopped_ ||
+               audio_playback_queue_.size() < MAX_PLAYBACK_TASKS_IN_QUEUE;
+    });
+
+    if (service_stopped_) {
+        return false;
+    }
+
+    audio_playback_queue_.push_back(std::move(task));
+    audio_queue_cv_.notify_all();
+    return true;
+}
+
+void AudioService::WaitForPlaybackComplete() {
+    std::unique_lock<std::mutex> lock(audio_queue_mutex_);
+    audio_queue_cv_.wait(lock, [this]() {
+        return service_stopped_ ||
+               (audio_decode_queue_.empty() &&
+                audio_playback_queue_.empty() &&
+                !audio_output_busy_);
+    });
 }
 
 void AudioService::SetModelsList(srmodel_list_t* models_list) {
