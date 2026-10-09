@@ -1,4 +1,5 @@
 #include "application.h"
+#include <new>
 #include "audio/music_player.h"
 #include "audio/music_http_streamer.h"
 #include "board.h"
@@ -58,6 +59,105 @@ Application::~Application() {
 
 bool Application::SetDeviceState(DeviceState state) {
     return state_machine_.TransitionTo(state);
+}
+
+
+bool Application::StartMusic(const std::string& song_name) {
+    if (song_name.empty()) {
+        ESP_LOGE(TAG, "Music name is empty");
+        return false;
+    }
+
+    if (GetDeviceState() == kDeviceStateMusicPlaying) {
+        ESP_LOGW(TAG, "Music is already playing");
+        return false;
+    }
+
+    // Data passed safely to the background task.
+    struct MusicJob {
+        Application* app;
+        std::string song;
+    };
+
+    auto* job = new (std::nothrow) MusicJob{this, song_name};
+
+    if (job == nullptr) {
+        ESP_LOGE(TAG, "Unable to allocate music task data");
+        return false;
+    }
+
+    // Stop any AI speech before entering music mode.
+    if (GetDeviceState() == kDeviceStateSpeaking) {
+        AbortSpeaking(kAbortReasonNone);
+    }
+
+    if (!SetDeviceState(kDeviceStateMusicPlaying)) {
+        delete job;
+        ESP_LOGE(TAG, "Cannot enter music mode");
+        return false;
+    }
+
+    // Disable AI microphone processing immediately.
+    audio_service_.EnableVoiceProcessing(false);
+    audio_service_.EnableWakeWordDetection(false);
+
+    BaseType_t result = xTaskCreate(
+        [](void* parameter) {
+            std::unique_ptr<MusicJob> job(
+                static_cast<MusicJob*>(parameter)
+            );
+
+            ESP_LOGI(
+                TAG,
+                "Starting music stream: %s",
+                job->song.c_str()
+            );
+
+            MusicPlayer player;
+
+            bool success = player.Initialize();
+
+            if (success) {
+                success = MusicHttpStreamer::StreamSong(
+                    job->song,
+                    player,
+                    job->app->GetAudioService()
+                );
+            }
+
+            player.Deinitialize();
+
+            ESP_LOGI(
+                TAG,
+                "Music playback finished: %s",
+                success ? "success" : "failed"
+            );
+
+            // Return to the main application task.
+            Application* app = job->app;
+
+            app->Schedule([app, success]() {
+                app->OnMusicPlaybackFinished(success);
+            });
+
+            vTaskDelete(nullptr);
+        },
+        "music_stream",
+        10240,
+        job,
+        3,
+        nullptr
+    );
+
+    if (result != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create music task");
+        delete job;
+        SetDeviceState(kDeviceStateIdle);
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Music task created");
+    return true;
 }
 
 void Application::Initialize() {
