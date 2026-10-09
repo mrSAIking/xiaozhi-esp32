@@ -888,10 +888,21 @@ void Application::HandleStateChangedEvent() {
             }
             audio_service_.ResetDecoder();
             break;
-        case kDeviceStateWifiConfiguring:
+                case kDeviceStateWifiConfiguring:
             audio_service_.EnableVoiceProcessing(false);
             audio_service_.EnableWakeWordDetection(false);
             break;
+
+        case kDeviceStateMusicPlaying:
+            // Stop AI microphone processing during music playback.
+            audio_service_.EnableVoiceProcessing(false);
+            audio_service_.EnableWakeWordDetection(false);
+
+            // Show music status on the OLED.
+            display->SetStatus("Playing music");
+            display->SetEmotion("neutral");
+            break;
+
         default:
             // Do nothing
             break;
