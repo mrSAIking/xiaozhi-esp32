@@ -112,6 +112,14 @@ public:
     AecMode GetAecMode() const { return aec_mode_; }
     void PlaySound(const std::string_view& sound);
     AudioService& GetAudioService() { return audio_service_; }
+
+    // Start MP3 playback without blocking the main application task.
+    // Returns false if music cannot be started.
+    bool StartMusic(const std::string& song_name);
+
+    // Called on the main application task when playback finishes.
+    // Restores active AI listening automatically.
+    void OnMusicPlaybackFinished(bool success);
     
     /**
      * Reset protocol resources (thread-safe)
