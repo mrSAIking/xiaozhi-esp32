@@ -507,9 +507,19 @@ void Application::InitializeProtocol() {
         }
     });
     
-    protocol_->OnAudioChannelClosed([this, &board]() {
-        board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
+        protocol_->OnAudioChannelClosed([this, &board]() {
+        // Keep performance mode while music is playing.
+        if (GetDeviceState() != kDeviceStateMusicPlaying) {
+            board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
+        }
+
         Schedule([this]() {
+            // Do not interrupt MP3 playback when the AI channel closes.
+            if (GetDeviceState() == kDeviceStateMusicPlaying) {
+                ESP_LOGI(TAG, "AI audio channel closed; music continues");
+                return;
+            }
+
             auto display = Board::GetInstance().GetDisplay();
             display->SetChatMessage("system", "");
             SetDeviceState(kDeviceStateIdle);
