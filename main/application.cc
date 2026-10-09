@@ -160,6 +160,57 @@ bool Application::StartMusic(const std::string& song_name) {
     return true;
 }
 
+
+void Application::OnMusicPlaybackFinished(bool success) {
+    // This function runs on the main application task.
+    if (GetDeviceState() != kDeviceStateMusicPlaying) {
+        ESP_LOGW(TAG, "Music finished, but device is no longer in music mode");
+        return;
+    }
+
+    ESP_LOGI(
+        TAG,
+        "Music finished: %s",
+        success ? "complete" : "streaming failed"
+    );
+
+    // Leave music mode.
+    if (!SetDeviceState(kDeviceStateIdle)) {
+        ESP_LOGE(TAG, "Failed to exit music mode");
+        return;
+    }
+
+    // Automatically restore ONLINE AI listening.
+    // No button press and no offline wake word required.
+    if (!protocol_) {
+        ESP_LOGE(TAG, "Cannot resume listening: protocol unavailable");
+        return;
+    }
+
+    ListeningMode mode =
+        aec_mode_ == kAecOff
+            ? kListeningModeAutoStop
+            : kListeningModeRealtime;
+
+    if (protocol_->IsAudioChannelOpened()) {
+        // Reuse the existing online AI connection.
+        ESP_LOGI(TAG, "Resuming AI listening on existing channel");
+        SetListeningMode(mode);
+    } else {
+        // Reconnect automatically before enabling the microphone.
+        ESP_LOGI(TAG, "Opening AI channel for automatic listening");
+
+        if (!SetDeviceState(kDeviceStateConnecting)) {
+            ESP_LOGE(TAG, "Cannot enter connecting state");
+            return;
+        }
+
+        Schedule([this, mode]() {
+            ContinueOpenAudioChannel(mode);
+        });
+    }
+}
+
 void Application::Initialize() {
     auto& board = Board::GetInstance();
     SetDeviceState(kDeviceStateStarting);
