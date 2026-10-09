@@ -2,6 +2,7 @@
 set(SOURCES "audio/audio_codec.cc"
             "audio/audio_service.cc"
             "audio/music_player.cc"
+            "audio/music_http_streamer.cc"
             "audio/codecs/no_audio_codec.cc"
             "audio/codecs/box_audio_codec.cc"
             "audio/codecs/es8311_audio_codec.cc"
@@ -809,6 +810,8 @@ idf_component_register(SRCS ${SOURCES}
                     PRIV_REQUIRES
                         esp_pm
                         esp_psram
+                        esp_http_client
+                        esp-tls
                         esp_netif
                         esp_driver_gpio
                         esp_driver_uart
