@@ -1,3 +1,4 @@
+
 #include "wifi_board.h"
 #include "codecs/no_audio_codec.h"
 #include "system_reset.h"
@@ -9,6 +10,7 @@
 #include "led/single_led.h"
 #include "display/oled_display.h"
 
+#include <string>
 #include <esp_log.h>
 #include <driver/i2c_master.h>
 #include <esp_lcd_panel_ops.h>
@@ -40,11 +42,17 @@ private:
                 .enable_internal_pullup = 1,
             },
         };
-        ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &display_i2c_bus_));
+
+        ESP_ERROR_CHECK(
+            i2c_new_master_bus(
+                &bus_config,
+                &display_i2c_bus_
+            )
+        );
     }
 
     void InitializeSsd1306Display() {
-        // SSD1306 config
+        // SSD1306 display configuration.
         esp_lcd_panel_io_i2c_config_t io_config = {
             .dev_addr = 0x3C,
             .on_color_trans_done = nullptr,
@@ -60,9 +68,16 @@ private:
             .scl_speed_hz = 400 * 1000,
         };
 
-        ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c_v2(display_i2c_bus_, &io_config, &panel_io_));
+        ESP_ERROR_CHECK(
+            esp_lcd_new_panel_io_i2c_v2(
+                display_i2c_bus_,
+                &io_config,
+                &panel_io_
+            )
+        );
 
         ESP_LOGI(TAG, "Install SSD1306 driver");
+
         esp_lcd_panel_dev_config_t panel_config = {};
         panel_config.reset_gpio_num = -1;
         panel_config.bits_per_pixel = 1;
@@ -70,93 +85,200 @@ private:
         esp_lcd_panel_ssd1306_config_t ssd1306_config = {
             .height = static_cast<uint8_t>(DISPLAY_HEIGHT),
         };
+
         panel_config.vendor_config = &ssd1306_config;
 
-        ESP_ERROR_CHECK(esp_lcd_new_panel_ssd1306(panel_io_, &panel_config, &panel_));
+        ESP_ERROR_CHECK(
+            esp_lcd_new_panel_ssd1306(
+                panel_io_,
+                &panel_config,
+                &panel_
+            )
+        );
+
         ESP_LOGI(TAG, "SSD1306 driver installed");
 
-        // Reset the display
-        ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_));
+        // Reset the display.
+        ESP_ERROR_CHECK(
+            esp_lcd_panel_reset(panel_)
+        );
+
         if (esp_lcd_panel_init(panel_) != ESP_OK) {
             ESP_LOGE(TAG, "Failed to initialize display");
             display_ = new NoDisplay();
             return;
         }
 
-        // Set the display to on
+        // Turn on the OLED.
         ESP_LOGI(TAG, "Turning display on");
-        ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_, true));
 
-        display_ = new OledDisplay(panel_io_, panel_, DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
+        ESP_ERROR_CHECK(
+            esp_lcd_panel_disp_on_off(
+                panel_,
+                true
+            )
+        );
+
+        display_ = new OledDisplay(
+            panel_io_,
+            panel_,
+            DISPLAY_WIDTH,
+            DISPLAY_HEIGHT,
+            DISPLAY_MIRROR_X,
+            DISPLAY_MIRROR_Y
+        );
     }
 
     void InitializeButtons() {
-        
-        // 配置 GPIO
+        // Configure built-in LED GPIO.
         gpio_config_t io_conf = {
-            .pin_bit_mask = 1ULL << BUILTIN_LED_GPIO,  // 设置需要配置的 GPIO 引脚
-            .mode = GPIO_MODE_OUTPUT,           // 设置为输出模式
-            .pull_up_en = GPIO_PULLUP_DISABLE,  // 禁用上拉
-            .pull_down_en = GPIO_PULLDOWN_DISABLE,  // 禁用下拉
-            .intr_type = GPIO_INTR_DISABLE      // 禁用中断
+            .pin_bit_mask = 1ULL << BUILTIN_LED_GPIO,
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE
         };
-        gpio_config(&io_conf);  // 应用配置
 
+        gpio_config(&io_conf);
+
+        // BOOT button: toggle AI conversation.
         boot_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
+
             if (app.GetDeviceState() == kDeviceStateStarting) {
                 EnterWifiConfigMode();
                 return;
             }
+
             gpio_set_level(BUILTIN_LED_GPIO, 1);
             app.ToggleChatState();
         });
 
+        // ASR button: manually invoke Xiaozhi.
         asr_button_.OnClick([this]() {
-            std::string wake_word="你好小智";
-            Application::GetInstance().WakeWordInvoke(wake_word);
+            std::string wake_word = "你好小智";
+
+            Application::GetInstance().WakeWordInvoke(
+                wake_word
+            );
         });
 
+        // Touch button: press to listen.
         touch_button_.OnPressDown([this]() {
             gpio_set_level(BUILTIN_LED_GPIO, 1);
+
             Application::GetInstance().StartListening();
         });
+
+        // Touch button: release to stop listening.
         touch_button_.OnPressUp([this]() {
             gpio_set_level(BUILTIN_LED_GPIO, 0);
+
             Application::GetInstance().StopListening();
         });
     }
 
-    // 物联网初始化，添加对 AI 可见设备
+    // Register tools available to the AI.
     void InitializeTools() {
+        // Preserve the existing lamp controller.
         static LampController lamp(LAMP_GPIO);
+
+        // Custom MP3 music playback tool.
+        McpServer::GetInstance().AddTool(
+            "self.music.play",
+
+            "Play a complete MP3 song through the device speaker. "
+            "Use this tool when the user asks to play a song. "
+            "For example, when the user says 'Play funksong', "
+            "call this tool with song_name='funksong'. "
+            "Do not include the .mp3 extension. "
+            "Songs are streamed from the configured GitHub music repository. "
+            "During music playback, AI voice processing is disabled. "
+            "When the song finishes, online AI listening resumes automatically.",
+
+            PropertyList({
+                Property(
+                    "song_name",
+                    kPropertyTypeString
+                )
+            }),
+
+            [](const PropertyList& properties) -> ReturnValue {
+                std::string song_name =
+                    properties["song_name"].value<std::string>();
+
+                ESP_LOGI(
+                    TAG,
+                    "AI requested song: %s",
+                    song_name.c_str()
+                );
+
+                bool started =
+                    Application::GetInstance().StartMusic(
+                        song_name
+                    );
+
+                if (!started) {
+                    ESP_LOGW(
+                        TAG,
+                        "Unable to start song: %s",
+                        song_name.c_str()
+                    );
+                }
+
+                return started;
+            }
+        );
+
+        ESP_LOGI(TAG, "Custom music MCP tool registered");
     }
 
 public:
-    CompactWifiBoard() : WifiBoard(), boot_button_(BOOT_BUTTON_GPIO), touch_button_(TOUCH_BUTTON_GPIO), asr_button_(ASR_BUTTON_GPIO)
-    {
+    CompactWifiBoard()
+        : WifiBoard(),
+          boot_button_(BOOT_BUTTON_GPIO),
+          touch_button_(TOUCH_BUTTON_GPIO),
+          asr_button_(ASR_BUTTON_GPIO) {
+
         InitializeDisplayI2c();
         InitializeSsd1306Display();
         InitializeButtons();
         InitializeTools();
     }
 
-    virtual AudioCodec* GetAudioCodec() override 
-    {
+    virtual AudioCodec* GetAudioCodec() override {
 #ifdef AUDIO_I2S_METHOD_SIMPLEX
-        static NoAudioCodecSimplex audio_codec(AUDIO_INPUT_SAMPLE_RATE, AUDIO_OUTPUT_SAMPLE_RATE,
-            AUDIO_I2S_SPK_GPIO_BCLK, AUDIO_I2S_SPK_GPIO_LRCK, AUDIO_I2S_SPK_GPIO_DOUT, AUDIO_I2S_MIC_GPIO_SCK, AUDIO_I2S_MIC_GPIO_WS, AUDIO_I2S_MIC_GPIO_DIN);
+
+        static NoAudioCodecSimplex audio_codec(
+            AUDIO_INPUT_SAMPLE_RATE,
+            AUDIO_OUTPUT_SAMPLE_RATE,
+            AUDIO_I2S_SPK_GPIO_BCLK,
+            AUDIO_I2S_SPK_GPIO_LRCK,
+            AUDIO_I2S_SPK_GPIO_DOUT,
+            AUDIO_I2S_MIC_GPIO_SCK,
+            AUDIO_I2S_MIC_GPIO_WS,
+            AUDIO_I2S_MIC_GPIO_DIN
+        );
+
 #else
-        static NoAudioCodecDuplex audio_codec(AUDIO_INPUT_SAMPLE_RATE, AUDIO_OUTPUT_SAMPLE_RATE,
-            AUDIO_I2S_GPIO_BCLK, AUDIO_I2S_GPIO_WS, AUDIO_I2S_GPIO_DOUT, AUDIO_I2S_GPIO_DIN);
+
+        static NoAudioCodecDuplex audio_codec(
+            AUDIO_INPUT_SAMPLE_RATE,
+            AUDIO_OUTPUT_SAMPLE_RATE,
+            AUDIO_I2S_GPIO_BCLK,
+            AUDIO_I2S_GPIO_WS,
+            AUDIO_I2S_GPIO_DOUT,
+            AUDIO_I2S_GPIO_DIN
+        );
+
 #endif
+
         return &audio_codec;
     }
 
     virtual Display* GetDisplay() override {
         return display_;
     }
-
 };
 
 DECLARE_BOARD(CompactWifiBoard);
