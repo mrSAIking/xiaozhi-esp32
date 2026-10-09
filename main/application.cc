@@ -1,4 +1,6 @@
 #include "application.h"
+#include "audio/music_player.h"
+#include "audio/music_http_streamer.h"
 #include "board.h"
 #include "display.h"
 #include "system_info.h"
