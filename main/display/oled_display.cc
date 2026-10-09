@@ -34,6 +34,17 @@ OledDisplay::OledDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handl
 
     auto& theme_manager = LvglThemeManager::GetInstance();
     theme_manager.RegisterTheme("dark", dark_theme);
+
+    // The SSD1306 is monochrome. A light theme uses hardware pixel inversion,
+    // so it needs the same fonts and layout as the dark theme.
+    auto light_theme = new LvglTheme("light");
+    light_theme->set_text_font(text_font);
+    light_theme->set_icon_font(icon_font);
+    light_theme->set_large_icon_font(large_icon_font);
+    light_theme->set_background_color(lv_color_white());
+    light_theme->set_text_color(lv_color_black());
+    theme_manager.RegisterTheme("light", light_theme);
+
     current_theme_ = dark_theme;
 
     ESP_LOGI(TAG, "Initialize LVGL");
@@ -445,11 +456,31 @@ void OledDisplay::SetEmotion(const char* emotion) {
 }
 
 void OledDisplay::SetTheme(Theme* theme) {
+    if (theme == nullptr || panel_ == nullptr || display_ == nullptr) {
+        return;
+    }
+
+    auto& manager = LvglThemeManager::GetInstance();
+    auto* light_theme = manager.GetTheme("light");
+    auto* dark_theme = manager.GetTheme("dark");
+    if (theme != light_theme && theme != dark_theme) {
+        ESP_LOGW(TAG, "Ignoring unsupported OLED theme");
+        return;
+    }
+
     DisplayLockGuard lock(this);
 
-    auto lvgl_theme = static_cast<LvglTheme*>(theme);
-    auto text_font = lvgl_theme->text_font()->font();
+    // Invert physical SSD1306 pixels rather than trying to recolor every LVGL
+    // widget. This also inverts status icons, scrolling text and face frames.
+    // false: illuminated text on an unlit background (dark mode).
+    // true: illuminated background with unlit text (light mode).
+    bool light = (theme == light_theme);
+    esp_err_t err = esp_lcd_panel_invert_color(panel_, light);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "OLED theme switch failed: %s", esp_err_to_name(err));
+        return;
+    }
 
-    auto screen = lv_screen_active();
-    lv_obj_set_style_text_font(screen, text_font, 0);
+    current_theme_ = theme;
+    ESP_LOGI(TAG, "OLED theme changed to %s", light ? "light" : "dark");
 }
