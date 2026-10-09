@@ -246,40 +246,39 @@ bool MusicPlayer::ProcessDecodedPcm(
 
     uint32_t max_output_samples = 0;
 
-    ret = esp_ae_rate_cvt_get_max_out_sample_num(
-        resampler_,
-        static_cast<uint32_t>(frames),
-        &max_output_samples
-    );
+    esp_ae_err_t ae_ret = esp_ae_rate_cvt_get_max_out_sample_num(
+    resampler_,
+    static_cast<uint32_t>(frames),
+    &max_output_samples
+);
 
-    if (ret != ESP_AUDIO_ERR_OK ||
-        max_output_samples == 0) {
-        ESP_LOGE(TAG, "Unable to calculate resampled size");
-        return false;
-    }
-
+if (ae_ret != ESP_AE_ERR_OK ||
+    max_output_samples == 0) {
+    ESP_LOGE(TAG, "Unable to calculate resampled size: %d", ae_ret);
+    return false;
+}
     std::vector<int16_t> resampled(
         max_output_samples
     );
 
     uint32_t actual_output_samples = max_output_samples;
 
-    ret = esp_ae_rate_cvt_process(
-        resampler_,
-        reinterpret_cast<esp_ae_sample_t>(
-            mono.data()
-        ),
-        static_cast<uint32_t>(frames),
-        reinterpret_cast<esp_ae_sample_t>(
-            resampled.data()
-        ),
-        &actual_output_samples
-    );
+    ae_ret = esp_ae_rate_cvt_process(
+    resampler_,
+    reinterpret_cast<esp_ae_sample_t>(
+        mono.data()
+    ),
+    static_cast<uint32_t>(frames),
+    reinterpret_cast<esp_ae_sample_t>(
+        resampled.data()
+    ),
+    &actual_output_samples
+);
 
-    if (ret != ESP_AUDIO_ERR_OK) {
-        ESP_LOGE(TAG, "PCM resampling failed: %d", ret);
-        return false;
-    }
+if (ae_ret != ESP_AE_ERR_OK) {
+    ESP_LOGE(TAG, "PCM resampling failed: %d", ae_ret);
+    return false;
+}
 
     if (actual_output_samples > max_output_samples) {
         ESP_LOGE(TAG, "Invalid resampler output size");
