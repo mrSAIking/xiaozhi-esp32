@@ -1,3 +1,4 @@
+
 #ifndef AUDIO_SERVICE_H
 #define AUDIO_SERVICE_H
 
@@ -6,6 +7,9 @@
 #include <condition_variable>
 #include <chrono>
 #include <mutex>
+#include <vector>
+#include <string>
+#include <functional>
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -24,16 +28,17 @@
 #include "wake_word.h"
 #include "protocol.h"
 
-
 /*
- * There are two types of audio data flow:
- * 1. (MIC) -> [Processors] -> {Encode Queue} -> [Opus Encoder] -> {Send Queue} -> (Server)
- * 2. (Server) -> {Decode Queue} -> [Opus Decoder] -> {Playback Queue} -> (Speaker)
+ * Audio data flows:
  *
- * We use one task for MIC / Speaker / Processors, and one task for Opus Encoder / Opus Decoder.
- * 
- * Decode Queue and Send Queue are the main queues, because Opus packets are quite smaller than PCM packets.
- * 
+ * 1. Microphone -> Audio Processor -> Encode Queue
+ *    -> Opus Encoder -> Send Queue -> Server
+ *
+ * 2. Server -> Decode Queue -> Opus Decoder
+ *    -> Playback Queue -> Speaker
+ *
+ * 3. Music Player -> Decoded 24 kHz Mono PCM
+ *    -> Playback Queue -> Speaker
  */
 
 #define OPUS_FRAME_DURATION_MS 60
@@ -82,7 +87,6 @@ struct AudioServiceCallbacks {
     std::function<void(void)> on_audio_testing_queue_full;
 };
 
-
 enum AudioTaskType {
     kAudioTaskTypeEncodeToSendQueue,
     kAudioTaskTypeEncodeToTestingQueue,
@@ -111,13 +115,34 @@ public:
     void Start();
     void Stop();
     void EncodeWakeWord();
+
     std::unique_ptr<AudioStreamPacket> PopWakeWordPacket();
     const std::string& GetLastWakeWord() const;
-    bool IsVoiceDetected() const { return voice_detected_; }
+
+    bool IsVoiceDetected() const {
+        return voice_detected_;
+    }
+
     bool IsIdle();
+
     void WaitForPlaybackQueueEmpty();
-    bool IsWakeWordRunning() const { return xEventGroupGetBits(event_group_) & AS_EVENT_WAKE_WORD_RUNNING; }
-    bool IsAudioProcessorRunning() const { return xEventGroupGetBits(event_group_) & AS_EVENT_AUDIO_PROCESSOR_RUNNING; }
+
+    // MUSIC: Submit decoded 24 kHz mono PCM to the existing
+    // speaker playback queue. Returns false if stopped.
+    bool PushMusicPcm(std::vector<int16_t>&& pcm);
+
+    // MUSIC: Wait for the playback queue and the currently
+    // playing speaker buffer to finish.
+    void WaitForPlaybackComplete();
+
+    bool IsWakeWordRunning() const {
+        return xEventGroupGetBits(event_group_) & AS_EVENT_WAKE_WORD_RUNNING;
+    }
+
+    bool IsAudioProcessorRunning() const {
+        return xEventGroupGetBits(event_group_) & AS_EVENT_AUDIO_PROCESSOR_RUNNING;
+    }
+
     bool IsAfeWakeWord();
 
     void EnableWakeWordDetection(bool enable);
@@ -127,50 +152,76 @@ public:
 
     void SetCallbacks(AudioServiceCallbacks& callbacks);
 
-    bool PushPacketToDecodeQueue(std::unique_ptr<AudioStreamPacket> packet, bool wait = false);
+    bool PushPacketToDecodeQueue(
+        std::unique_ptr<AudioStreamPacket> packet,
+        bool wait = false
+    );
+
     std::unique_ptr<AudioStreamPacket> PopPacketFromSendQueue();
+
     void PlaySound(const std::string_view& sound);
-    bool ReadAudioData(std::vector<int16_t>& data, int sample_rate, int samples);
+
+    bool ReadAudioData(
+        std::vector<int16_t>& data,
+        int sample_rate,
+        int samples
+    );
+
     void ResetDecoder();
     void SetModelsList(srmodel_list_t* models_list);
 
 private:
     AudioCodec* codec_ = nullptr;
     AudioServiceCallbacks callbacks_;
+
     std::unique_ptr<AudioProcessor> audio_processor_;
     std::unique_ptr<WakeWord> wake_word_;
     std::unique_ptr<AudioDebugger> audio_debugger_;
+
     void* opus_encoder_ = nullptr;
     void* opus_decoder_ = nullptr;
+
     std::mutex decoder_mutex_;
     std::mutex input_resampler_mutex_;
+
     esp_ae_rate_cvt_handle_t input_resampler_ = nullptr;
     esp_ae_rate_cvt_handle_t output_resampler_ = nullptr;
-    
-    // Encoder/Decoder state
+
+    // Encoder/decoder state
     int encoder_sample_rate_ = 16000;
     int encoder_duration_ms_ = OPUS_FRAME_DURATION_MS;
     int encoder_frame_size_ = 0;
     int encoder_outbuf_size_ = 0;
+
     int decoder_sample_rate_ = 0;
     int decoder_duration_ms_ = OPUS_FRAME_DURATION_MS;
     int decoder_frame_size_ = 0;
+
     DebugStatistics debug_statistics_;
     srmodel_list_t* models_list_ = nullptr;
 
     EventGroupHandle_t event_group_;
 
-    // Audio encode / decode
+    // Audio tasks
     TaskHandle_t audio_input_task_handle_ = nullptr;
     TaskHandle_t audio_output_task_handle_ = nullptr;
     TaskHandle_t opus_codec_task_handle_ = nullptr;
+
+    // Audio queues
     std::mutex audio_queue_mutex_;
     std::condition_variable audio_queue_cv_;
+
     std::deque<std::unique_ptr<AudioStreamPacket>> audio_decode_queue_;
     std::deque<std::unique_ptr<AudioStreamPacket>> audio_send_queue_;
     std::deque<std::unique_ptr<AudioStreamPacket>> audio_testing_queue_;
+
     std::deque<std::unique_ptr<AudioTask>> audio_encode_queue_;
     std::deque<std::unique_ptr<AudioTask>> audio_playback_queue_;
+
+    // MUSIC: Tracks whether the speaker task is currently
+    // writing a PCM buffer to the I2S output.
+    bool audio_output_busy_ = false;
+
     // For server AEC
     std::deque<uint32_t> timestamp_queue_;
 
@@ -181,15 +232,25 @@ private:
     bool audio_input_need_warmup_ = false;
 
     esp_timer_handle_t audio_power_timer_ = nullptr;
+
     std::chrono::steady_clock::time_point last_input_time_;
     std::chrono::steady_clock::time_point last_output_time_;
 
     void AudioInputTask();
     void AudioOutputTask();
     void OpusCodecTask();
-    void PushTaskToEncodeQueue(AudioTaskType type, std::vector<int16_t>&& pcm);
-    void SetDecodeSampleRate(int sample_rate, int frame_duration);
+
+    void PushTaskToEncodeQueue(
+        AudioTaskType type,
+        std::vector<int16_t>&& pcm
+    );
+
+    void SetDecodeSampleRate(
+        int sample_rate,
+        int frame_duration
+    );
+
     void CheckAndUpdateAudioPowerState();
 };
 
-#endif
+#endif // AUDIO_SERVICE_H
