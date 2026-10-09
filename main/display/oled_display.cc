@@ -81,9 +81,24 @@ OledDisplay::OledDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handl
     } else {
         SetupUI_128x32();
     }
+
+    // Timer callbacks execute in the LVGL context. Create the timer under
+    // the LVGL lock; they must not take DisplayLockGuard themselves.
+    {
+        DisplayLockGuard lock(this);
+        blink_timer_ = lv_timer_create(BlinkTimerCallback, 120, this);
+    }
 }
 
 OledDisplay::~OledDisplay() {
+    // Stop callbacks before deleting emotion_label_ or its parent objects.
+    {
+        DisplayLockGuard lock(this);
+        if (blink_timer_ != nullptr) {
+            lv_timer_delete(blink_timer_);
+            blink_timer_ = nullptr;
+        }
+    }
     if (content_ != nullptr) {
         lv_obj_del(content_);
     }
@@ -372,17 +387,61 @@ void OledDisplay::SetupUI_128x32() {
     lv_obj_set_style_anim_duration(chat_message_label_, lv_anim_speed_clamped(60, 300, 60000), LV_PART_MAIN);
 }
 
+void OledDisplay::BlinkTimerCallback(lv_timer_t* timer) {
+    auto* self = static_cast<OledDisplay*>(lv_timer_get_user_data(timer));
+    if (self == nullptr || self->emotion_label_ == nullptr) {
+        return;
+    }
+
+    // Restore the original face after a single 120 ms blink frame.
+    if (self->blink_active_) {
+        const char* icon = font_awesome_get_utf8(self->emotion_name_.c_str());
+        lv_label_set_text(self->emotion_label_, icon != nullptr ? icon : FONT_AWESOME_NEUTRAL);
+        lv_obj_remove_flag(self->emotion_label_, LV_OBJ_FLAG_HIDDEN);
+        self->blink_active_ = false;
+        self->blink_ticks_ = 0;
+        return;
+    }
+
+    if (!self->neutral_emotion_) {
+        self->blink_ticks_ = 0;
+        return;
+    }
+
+    // 40 * 120 ms = 4.8 seconds between blinks.
+    if (++self->blink_ticks_ >= 40) {
+        const char* wink = font_awesome_get_utf8("winking");
+        if (wink != nullptr) {
+            lv_label_set_text(self->emotion_label_, wink);
+        } else {
+            // Fallback on builds without a winking glyph.
+            lv_obj_add_flag(self->emotion_label_, LV_OBJ_FLAG_HIDDEN);
+        }
+        self->blink_active_ = true;
+    }
+}
+
 void OledDisplay::SetEmotion(const char* emotion) {
+    if (emotion == nullptr) {
+        emotion = "neutral";
+    }
     const char* utf8 = font_awesome_get_utf8(emotion);
     DisplayLockGuard lock(this);
     if (emotion_label_ == nullptr) {
         return;
     }
-    if (utf8 != nullptr) {
-        lv_label_set_text(emotion_label_, utf8);
-    } else {
-        lv_label_set_text(emotion_label_, FONT_AWESOME_NEUTRAL);
+
+    const bool changed = emotion_name_ != emotion;
+    if (changed) {
+        emotion_name_ = emotion;
+        neutral_emotion_ = (emotion_name_ == "neutral");
+        blink_ticks_ = 0;
     }
+
+    // Cancel an in-progress blink whenever a new emotion arrives.
+    blink_active_ = false;
+    lv_obj_remove_flag(emotion_label_, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(emotion_label_, utf8 != nullptr ? utf8 : FONT_AWESOME_NEUTRAL);
 }
 
 void OledDisplay::SetTheme(Theme* theme) {
