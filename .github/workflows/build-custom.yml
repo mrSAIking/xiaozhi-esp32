@@ -27,7 +27,7 @@ jobs:
           source $IDF_PATH/export.sh
           python scripts/release.py bread-compact-esp32 --name bread-compact-esp32
 
-      - name: Verify English and OLED configuration
+      - name: Verify English, OLED and MP3 configuration
         shell: bash
         run: |
           echo "Checking English language..."
@@ -36,7 +36,15 @@ jobs:
           echo "Checking SSD1306 128x64 OLED..."
           grep '^CONFIG_OLED_SSD1306_128X64=y$' sdkconfig
 
-          echo "Configuration verification passed!"
+          echo "Checking MP3 decoder configuration..."
+          if grep -q '^CONFIG_AUDIO_DECODER_MP3_SUPPORT=y$' sdkconfig; then
+            echo "MP3 decoder support is enabled."
+          else
+            echo "MP3 decoder option is not enabled or is unavailable."
+            echo "This is a diagnostic check, not a build failure."
+          fi
+
+          echo "Configuration verification completed!"
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
