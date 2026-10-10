@@ -214,28 +214,68 @@ NoAudioCodecSimplex::NoAudioCodecSimplex(int input_sample_rate, int output_sampl
     ESP_LOGI(TAG, "Simplex channels created");
 }
 
+
 int NoAudioCodec::Write(const int16_t* data, int samples) {
     std::lock_guard<std::mutex> lock(data_if_mutex_);
-    std::vector<int32_t> buffer(samples);
 
-    // output_volume_: 0-100
-    // volume_factor_: 0-65536
-    int32_t volume_factor = pow(double(output_volume_) / 100.0, 2) * 65536;
-    for (int i = 0; i < samples; i++) {
-        int64_t temp = int64_t(data[i]) * volume_factor; // 使用 int64_t 进行乘法运算
-        if (temp > INT32_MAX) {
-            buffer[i] = INT32_MAX;
-        } else if (temp < INT32_MIN) {
-            buffer[i] = INT32_MIN;
-        } else {
-            buffer[i] = static_cast<int32_t>(temp);
+    // Fixed-size stack buffer avoids repeated heap allocations.
+    constexpr int kChunkSamples = 128;
+    int32_t buffer[kChunkSamples];
+
+    const int32_t volume_factor =
+        static_cast<int32_t>(
+            pow(double(output_volume_) / 100.0, 2) * 65536
+        );
+
+    int total_written = 0;
+
+    while (total_written < samples) {
+        const int count =
+            (samples - total_written < kChunkSamples)
+                ? samples - total_written
+                : kChunkSamples;
+
+        for (int i = 0; i < count; ++i) {
+            const int64_t temp =
+                int64_t(data[total_written + i]) * volume_factor;
+
+            if (temp > INT32_MAX) {
+                buffer[i] = INT32_MAX;
+            } else if (temp < INT32_MIN) {
+                buffer[i] = INT32_MIN;
+            } else {
+                buffer[i] = static_cast<int32_t>(temp);
+            }
+        }
+
+        size_t bytes_written = 0;
+        esp_err_t err = i2s_channel_write(
+            tx_handle_,
+            buffer,
+            count * sizeof(int32_t),
+            &bytes_written,
+            portMAX_DELAY
+        );
+
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "I2S write failed: %s", esp_err_to_name(err));
+            return total_written;
+        }
+
+        const int written =
+            static_cast<int>(bytes_written / sizeof(int32_t));
+
+        total_written += written;
+
+        if (written != count) {
+            ESP_LOGE(TAG, "Incomplete I2S write");
+            break;
         }
     }
 
-    size_t bytes_written;
-    ESP_ERROR_CHECK(i2s_channel_write(tx_handle_, buffer.data(), samples * sizeof(int32_t), &bytes_written, portMAX_DELAY));
-    return bytes_written / sizeof(int32_t);
+    return total_written;
 }
+
 
 int NoAudioCodec::Read(int16_t* dest, int samples) {
     size_t bytes_read;
