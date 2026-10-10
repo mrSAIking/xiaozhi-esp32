@@ -50,5 +50,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: xiaozhi-esp32-wroom-firmware
-          path: build/merged-binary.bin
+          path: |
+            build/merged-binary.bin
+            build/*.elf
+            build/*.map
           if-no-files-found: error
