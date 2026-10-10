@@ -12,6 +12,7 @@
 #include "sdkconfig.h"
 
 #include <esp_err.h>
+#include <esp_heap_caps.h>
 #include <esp_log.h>
 #include <esp_http_client.h>
 #include <esp_crt_bundle.h>
@@ -205,6 +206,16 @@ bool MusicHttpStreamer::StreamSong(
         "identity"
     );
 
+    ESP_LOGI(
+    TAG,
+    "Heap before HTTPS: free=%u, largest=%u",
+    static_cast<unsigned>(
+        heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
+    ),
+    static_cast<unsigned>(
+        heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
+    )
+    );
     ESP_LOGI(TAG, "Connecting to GitHub music...");
 
     // The callback receives data progressively.
