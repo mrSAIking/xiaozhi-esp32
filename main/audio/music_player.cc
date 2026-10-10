@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <esp_log.h>
+#include <esp_heap_caps.h>
 
 #include "sdkconfig.h"
 #include "esp_audio_dec_default.h"
@@ -52,6 +53,12 @@ bool MusicPlayer::Initialize() {
     }
 
     esp_audio_simple_dec_cfg_t cfg = {};
+    ESP_LOGI(
+    TAG,
+    "Heap before MP3 decoder: free=%u, largest=%u",
+    static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
+    static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT))
+    );
     cfg.dec_type = ESP_AUDIO_SIMPLE_DEC_TYPE_MP3;
     cfg.use_frame_dec = false;
 
