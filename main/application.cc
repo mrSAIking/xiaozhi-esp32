@@ -14,6 +14,8 @@
 #include "settings.h"
 
 #include <cstring>
+#include <cstdlib>
+#include <ctime>
 #include <esp_log.h>
 #include <cJSON.h>
 #include <driver/gpio.h>
@@ -211,8 +213,15 @@ void Application::OnMusicPlaybackFinished(bool success) {
     }
 }
 
+
 void Application::Initialize() {
+    // Vijayawada, India - IST (UTC+05:30).
+    // POSIX timezone offsets use the opposite sign.
+    setenv("TZ", "IST-5:30", 1);
+    tzset();
+
     auto& board = Board::GetInstance();
+
     SetDeviceState(kDeviceStateStarting);
 
     // Setup the display
