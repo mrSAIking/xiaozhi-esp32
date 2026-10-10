@@ -253,6 +253,7 @@ void Application::Initialize() {
 
     // Set network event callback for UI updates and network state handling
     board.SetNetworkEventCallback([this](NetworkEvent event, const std::string& data) {
+        Schedule([this, event, data]() {
         auto display = Board::GetInstance().GetDisplay();
         
         switch (event) {
@@ -306,6 +307,7 @@ void Application::Initialize() {
                 display->SetStatus(Lang::Strings::REGISTERING_NETWORK);
                 break;
         }
+        });
     });
 
     // Start network asynchronously
