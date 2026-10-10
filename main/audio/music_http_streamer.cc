@@ -161,8 +161,9 @@ bool MusicHttpStreamer::StreamSong(
     config.url = url.c_str();
 
     // Stream in small chunks to reduce RAM usage.
-    config.buffer_size = 1024;
-    config.buffer_size_tx = 1024;
+    // Reduce HTTP client buffer allocations on ESP32 without PSRAM.
+    config.buffer_size = 512;
+    config.buffer_size_tx = 512;
 
     config.timeout_ms = 15000;
 
