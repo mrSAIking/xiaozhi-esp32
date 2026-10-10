@@ -1,3 +1,4 @@
+
 #ifndef OLED_DISPLAY_H
 #define OLED_DISPLAY_H
 
@@ -23,6 +24,17 @@ private:
     lv_obj_t* emotion_label_ = nullptr;
     lv_obj_t* chat_message_label_ = nullptr;
 
+    // Voice-controlled OLED screen modes.
+    // Normal mode keeps the original display layout.
+    // Face-only mode shows just the animated expression.
+    lv_obj_t* face_only_layer_ = nullptr;
+    lv_obj_t* face_only_emotion_label_ = nullptr;
+    bool face_only_mode_ = false;
+
+    // Keep the full-screen face synchronized with the
+    // current emotion and blink animation.
+    void SyncFaceOnlyEmotion();
+
     // Lightweight blink: no images, extra tasks or audio changes.
     lv_timer_t* blink_timer_ = nullptr;
     uint32_t blink_ticks_ = 0;
@@ -38,12 +50,33 @@ private:
     void SetupUI_128x32();
 
 public:
-    OledDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel, int width, int height, bool mirror_x, bool mirror_y);
+    OledDisplay(
+        esp_lcd_panel_io_handle_t panel_io,
+        esp_lcd_panel_handle_t panel,
+        int width,
+        int height,
+        bool mirror_x,
+        bool mirror_y
+    );
+
     ~OledDisplay();
 
-    virtual void SetChatMessage(const char* role, const char* content) override;
-    virtual void SetEmotion(const char* emotion) override;
-    virtual void SetTheme(Theme* theme) override;
+    virtual void SetChatMessage(
+        const char* role,
+        const char* content
+    ) override;
+
+    virtual void SetEmotion(
+        const char* emotion
+    ) override;
+
+    virtual void SetTheme(
+        Theme* theme
+    ) override;
+
+    // true  = Face-only mode
+    // false = Normal mode
+    bool SetFaceOnlyMode(bool enabled);
 };
 
 #endif // OLED_DISPLAY_H
