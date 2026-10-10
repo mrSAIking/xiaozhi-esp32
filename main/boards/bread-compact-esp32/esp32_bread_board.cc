@@ -230,7 +230,63 @@ private:
             }
         );
 
-        ESP_LOGI(TAG, "Custom music MCP tool registered");
+        
+        // Voice-controlled OLED screen modes.
+        // Commands: "Face mode" and "Normal mode".
+        McpServer::GetInstance().AddTool(
+            "self.screen.set_mode",
+
+            "Change the ESP32 OLED display mode. "
+            "When the user says 'Face mode' or "
+            "'Face-only mode', call this tool with mode='face'. "
+            "When the user says 'Normal mode', "
+            "call this tool with mode='normal'. "
+            "Face mode shows only the animated facial expression. "
+            "Normal mode restores the original display layout. "
+            "The screen mode is saved across restarts.",
+
+            PropertyList({
+                Property(
+                    "mode",
+                    kPropertyTypeString
+                )
+            }),
+
+            [this](const PropertyList& properties) -> ReturnValue {
+                std::string mode =
+                    properties["mode"].value<std::string>();
+
+                auto* oled =
+                    dynamic_cast<OledDisplay*>(display_);
+
+                if (oled == nullptr) {
+                    ESP_LOGW(TAG, "OLED display unavailable");
+                    return false;
+                }
+
+                if (mode == "face" || mode == "face-only") {
+                    return oled->SetFaceOnlyMode(true);
+                }
+
+                if (mode == "normal") {
+                    return oled->SetFaceOnlyMode(false);
+                }
+
+                ESP_LOGW(
+                    TAG,
+                    "Unknown OLED mode: %s",
+                    mode.c_str()
+                );
+
+                return false;
+            }
+        );
+
+        ESP_LOGI(
+            TAG,
+            "Custom music and screen MCP tools registered"
+        );
+
     }
 
 public:
