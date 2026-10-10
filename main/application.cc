@@ -115,19 +115,14 @@ bool Application::StartMusic(const std::string& song_name) {
                 job->song.c_str()
             );
 
+            // Raw PCM streaming does not need the MP3 decoder.
             MusicPlayer player;
-
-            bool success = player.Initialize();
-
-            if (success) {
-                success = MusicHttpStreamer::StreamSong(
-                    job->song,
-                    player,
-                    job->app->GetAudioService()
-                );
-            }
-
-            player.Deinitialize();
+            
+            bool success = MusicHttpStreamer::StreamSong(
+                job->song,
+                player,
+                job->app->GetAudioService()
+            );
 
             ESP_LOGI(
                 TAG,
