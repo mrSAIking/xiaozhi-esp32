@@ -99,11 +99,17 @@ bool Application::StartMusic(const std::string& song_name) {
         return false;
     }
 
-    // Disable AI microphone processing immediately.
     audio_service_.EnableVoiceProcessing(false);
-    audio_service_.EnableWakeWordDetection(false);
+audio_service_.EnableWakeWordDetection(false);
 
-    BaseType_t result = xTaskCreate(
+// Free the AI audio channel before opening music HTTPS.
+// Keep MQTT connected for Xiaozhi.
+if (protocol_ && protocol_->IsAudioChannelOpened()) {
+    ESP_LOGI(TAG, "Closing AI audio channel to free RAM for music");
+    protocol_->CloseAudioChannel();
+}
+
+BaseType_t result = xTaskCreate(
         [](void* parameter) {
             std::unique_ptr<MusicJob> job(
                 static_cast<MusicJob*>(parameter)
