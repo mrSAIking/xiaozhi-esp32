@@ -329,7 +329,7 @@ bool MusicPlayer::DecodeChunk(
 
     // Handles most decoded MP3 frames, including stereo.
     // If more space is needed, the decoder will tell us.
-    std::vector<uint8_t> output(8192);
+    std::vector<uint8_t> output(4608);
 
     esp_audio_simple_dec_raw_t raw = {};
     raw.buffer = input.empty() ? nullptr : input.data();
