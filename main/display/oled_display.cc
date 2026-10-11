@@ -6,6 +6,7 @@
 #include "settings.h"
 
 #include <string>
+#include "application.h"
 #include <algorithm>
 
 #include <esp_log.h>
@@ -961,77 +962,101 @@ bool OledDisplay::SetFaceOnlyMode(bool enabled) {
     return true;
 }
 
+
 void OledDisplay::BlinkTimerCallback(lv_timer_t* timer) {
     auto* self = static_cast<OledDisplay*>(
         lv_timer_get_user_data(timer)
     );
 
-    if (
-        self == nullptr ||
-        self->emotion_label_ == nullptr
-    ) {
+    if (self == nullptr ||
+        self->normal_eyes_[0] == nullptr ||
+        self->normal_eyes_[1] == nullptr ||
+        self->fullscreen_eyes_[0] == nullptr ||
+        self->fullscreen_eyes_[1] == nullptr) {
         return;
     }
 
-    // Restore original face after blink.
-    if (self->blink_active_) {
-        const char* icon = font_awesome_get_utf8(
-            self->emotion_name_.c_str()
-        );
+    
+    // Control the mouth using the real device state.
+    const DeviceState state =
+        Application::GetInstance().GetDeviceState();
 
-        lv_label_set_text(
-            self->emotion_label_,
-            icon != nullptr
-                ? icon
-                : FONT_AWESOME_NEUTRAL
-        );
+    const bool mouth_active =
+        state == kDeviceStateSpeaking ||
+        state == kDeviceStateMusicPlaying;
 
-        lv_obj_remove_flag(
-            self->emotion_label_,
-            LV_OBJ_FLAG_HIDDEN
-        );
+    if (mouth_active != self->face_speaking_) {
+        self->face_speaking_ = mouth_active;
 
-        self->blink_active_ = false;
-        self->blink_ticks_ = 0;
-
-        self->SyncFaceOnlyEmotion();
-        return;
-    }
-
-    if (!self->neutral_emotion_) {
-        self->blink_ticks_ = 0;
-        return;
-    }
-
-    // Blink approximately every 4.8 seconds.
-    if (++self->blink_ticks_ >= 40) {
-        const char* wink = font_awesome_get_utf8(
-            "winking"
-        );
-
-        if (wink != nullptr) {
-            lv_label_set_text(
-                self->emotion_label_,
-                wink
+        if (mouth_active) {
+            lv_obj_remove_flag(
+                self->normal_mouth_, LV_OBJ_FLAG_HIDDEN
+            );
+            lv_obj_remove_flag(
+                self->fullscreen_mouth_, LV_OBJ_FLAG_HIDDEN
             );
         } else {
             lv_obj_add_flag(
-                self->emotion_label_,
-                LV_OBJ_FLAG_HIDDEN
+                self->normal_mouth_, LV_OBJ_FLAG_HIDDEN
+            );
+            lv_obj_add_flag(
+                self->fullscreen_mouth_, LV_OBJ_FLAG_HIDDEN
             );
         }
-
-        self->blink_active_ = true;
-        self->SyncFaceOnlyEmotion();
     }
+
+    // Alternate mouth opening while speaking or playing music.
+    // Updates roughly every 240 milliseconds.
+    if (mouth_active && self->blink_ticks_ % 2 == 0) {
+        static bool mouth_open = false;
+        mouth_open = !mouth_open;
+
+        lv_obj_set_height(
+            self->normal_mouth_, mouth_open ? 7 : 3
+        );
+        lv_obj_set_height(
+            self->fullscreen_mouth_, mouth_open ? 12 : 4
+        );
+    }
+
+
+    // Restore eyes after a short, natural blink.
+    if (self->eyes_closed_) {
+        for (int i = 0; i < 2; ++i) {
+            lv_obj_set_height(self->normal_eyes_[i], 10);
+            lv_obj_set_y(self->normal_eyes_[i], 7);
+
+            lv_obj_set_height(self->fullscreen_eyes_[i], 20);
+            lv_obj_set_y(self->fullscreen_eyes_[i], 17);
+        }
+
+        self->eyes_closed_ = false;
+        self->blink_ticks_ = 0;
+        return;
+    }
+
+    // 40 ticks x 120 ms = approximately 4.8 seconds.
+    if (++self->blink_ticks_ < 40) {
+        return;
+    }
+
+    // Close both eyes for one timer interval (120 ms).
+    for (int i = 0; i < 2; ++i) {
+        lv_obj_set_height(self->normal_eyes_[i], 2);
+        lv_obj_set_y(self->normal_eyes_[i], 11);
+
+        lv_obj_set_height(self->fullscreen_eyes_[i], 2);
+        lv_obj_set_y(self->fullscreen_eyes_[i], 26);
+    }
+
+    self->eyes_closed_ = true;
 }
+
 
 void OledDisplay::SetEmotion(const char* emotion) {
     if (emotion == nullptr) {
         emotion = "neutral";
     }
-
-    const char* utf8 = font_awesome_get_utf8(emotion);
 
     DisplayLockGuard lock(this);
 
@@ -1039,33 +1064,32 @@ void OledDisplay::SetEmotion(const char* emotion) {
         return;
     }
 
-    const bool changed = emotion_name_ != emotion;
-
-    // Ignore repeated updates of the same emotion.
-    // Let the blink timer finish naturally.
-    if (!changed) {
+    // Preserve the original icon behavior on 128x32 OLEDs.
+    if (normal_eyes_[0] == nullptr) {
+        const char* utf8 = font_awesome_get_utf8(emotion);
+        lv_label_set_text(
+            emotion_label_,
+            utf8 != nullptr ? utf8 : FONT_AWESOME_NEUTRAL
+        );
         return;
     }
-    
-    emotion_name_ = emotion;
-    neutral_emotion_ = (emotion_name_ == "neutral");
-    blink_ticks_ = 0;
-    blink_active_ = false;
 
-    lv_obj_remove_flag(
-        emotion_label_,
-        LV_OBJ_FLAG_HIDDEN
-    );
+    // Robot-face mode: never show the old emoji icons.
+    lv_obj_add_flag(emotion_label_, LV_OBJ_FLAG_HIDDEN);
 
-    lv_label_set_text(
-        emotion_label_,
-        utf8 != nullptr
-            ? utf8
-            : FONT_AWESOME_NEUTRAL
-    );
+    if (face_only_emotion_label_ != nullptr) {
+        lv_obj_add_flag(
+            face_only_emotion_label_,
+            LV_OBJ_FLAG_HIDDEN
+        );
+    }
 
-    SyncFaceOnlyEmotion();
+    // Remember the AI emotion without replacing robot eyes.
+    if (emotion_name_ != emotion) {
+        emotion_name_ = emotion;
+    }
 }
+
 
 void OledDisplay::SetTheme(Theme* theme) {
     if (
