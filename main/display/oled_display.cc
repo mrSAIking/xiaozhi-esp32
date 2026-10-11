@@ -656,6 +656,57 @@ void OledDisplay::SetupUI_128x64() {
         face_only_layer_,
         LV_OBJ_FLAG_HIDDEN
     );
+
+    // Robot face for both OLED modes.
+lv_obj_add_flag(emotion_label_, LV_OBJ_FLAG_HIDDEN);
+lv_obj_add_flag(face_only_emotion_label_, LV_OBJ_FLAG_HIDDEN);
+
+// Give the normal face its own fixed drawing area.
+lv_obj_set_size(content_left_, 32, 32);
+lv_obj_set_style_layout(content_left_, LV_LAYOUT_NONE, 0);
+
+// Create a simple black shape without borders or shadows.
+auto make_shape = [](lv_obj_t* parent,
+                     int x, int y, int w, int h,
+                     int radius) -> lv_obj_t* {
+    lv_obj_t* obj = lv_obj_create(parent);
+
+    lv_obj_set_size(obj, w, h);
+    lv_obj_set_pos(obj, x, y);
+    lv_obj_set_style_bg_color(obj, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(obj, 0, 0);
+    lv_obj_set_style_shadow_width(obj, 0, 0);
+    lv_obj_set_style_pad_all(obj, 0, 0);
+    lv_obj_set_style_radius(obj, radius, 0);
+    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+
+    return obj;
+};
+
+// Normal mode: compact face beside the text.
+normal_eyes_[0] =
+    make_shape(content_left_, 5, 7, 7, 10, 4);
+
+normal_eyes_[1] =
+    make_shape(content_left_, 20, 7, 7, 10, 4);
+
+normal_mouth_ =
+    make_shape(content_left_, 10, 23, 12, 4, 2);
+
+// Face-only mode: larger centered face.
+fullscreen_eyes_[0] =
+    make_shape(face_only_layer_, 30, 17, 16, 20, 8);
+
+fullscreen_eyes_[1] =
+    make_shape(face_only_layer_, 82, 17, 16, 20, 8);
+
+fullscreen_mouth_ =
+    make_shape(face_only_layer_, 49, 44, 30, 9, 5);
+
+// Start with eyes only.
+lv_obj_add_flag(normal_mouth_, LV_OBJ_FLAG_HIDDEN);
+lv_obj_add_flag(fullscreen_mouth_, LV_OBJ_FLAG_HIDDEN);
 }
 
 void OledDisplay::SetupUI_128x32() {
