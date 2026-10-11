@@ -1,5 +1,6 @@
 
 #include "wifi_board.h"
+#include <wifi_manager.h>
 #include "codecs/no_audio_codec.h"
 #include "system_reset.h"
 #include "application.h"
@@ -12,6 +13,10 @@
 
 #include <string>
 #include <esp_log.h>
+#include <esp_timer.h>
+#include <esp_system.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <driver/i2c_master.h>
 #include <esp_lcd_panel_ops.h>
 #include <esp_lcd_panel_vendor.h>
@@ -282,9 +287,111 @@ private:
             }
         );
 
+        
+        // Voice-controlled Wi-Fi information.
+        McpServer::GetInstance().AddTool(
+            "self.wifi.get_info",
+
+            "Get current Wi-Fi information from this ESP32. "
+            "Use when the user asks about Wi-Fi name, SSID, "
+            "signal strength, signal quality or IP address. "
+            "Report the real values returned by this tool. "
+            "Never invent Wi-Fi information.",
+
+            PropertyList(),
+
+            [](const PropertyList& properties) -> ReturnValue {
+                auto& wifi = WifiManager::GetInstance();
+
+                if (!wifi.IsConnected()) {
+                    return std::string("Wi-Fi is disconnected.");
+                }
+
+                const int rssi = wifi.GetRssi();
+
+                const char* quality =
+                    rssi >= -55 ? "Excellent" :
+                    rssi >= -65 ? "Good" :
+                    rssi >= -75 ? "Fair" : "Weak";
+
+                std::string info =
+                    "Connected Wi-Fi SSID: " + wifi.GetSsid() +
+                    "\nSignal strength: " +
+                    std::to_string(rssi) + " dBm" +
+                    "\nSignal quality: " + quality +
+                    "\nLocal IP address: " +
+                    wifi.GetIpAddress();
+
+                return info;
+            }
+        );
+
+
+        // Remote reboot: first request confirmation, then require
+        // a separate explicit confirmation within 30 seconds.
+        static int64_t reboot_deadline_us = 0;
+
+        McpServer::GetInstance().AddTool(
+            "self.device.request_reboot",
+            "Prepare a device reboot without restarting yet. "
+            "Call when the user asks to restart the ESP32. "
+            "Ask: 'Are you sure you want me to restart?' "
+            "Wait for a new explicit user confirmation. "
+            "Do not call self.device.confirm_reboot yet.",
+            PropertyList(),
+            [](const PropertyList&) -> ReturnValue {
+                reboot_deadline_us = esp_timer_get_time() + 30000000LL;
+                return std::string(
+                    "Reboot pending for 30 seconds. Ask the user "
+                    "to explicitly confirm before restarting."
+                );
+            }
+        );
+
+        McpServer::GetInstance().AddTool(
+            "self.device.confirm_reboot",
+            "Restart the ESP32 only after the user explicitly "
+            "confirmed a pending reboot request in a new message. "
+            "Never call this merely because a reboot was requested. "
+            "Do not infer consent from earlier messages.",
+            PropertyList(),
+            [](const PropertyList&) -> ReturnValue {
+                const int64_t now = esp_timer_get_time();
+                if (reboot_deadline_us == 0 || now > reboot_deadline_us) {
+                    reboot_deadline_us = 0;
+                    return std::string(
+                        "No pending reboot, or confirmation expired. "
+                        "Request a reboot again."
+                    );
+                }
+
+                reboot_deadline_us = 0;
+                BaseType_t task_created = xTaskCreate(
+                    [](void*) {
+                        // Allow time for the AI's spoken confirmation.
+                        vTaskDelay(pdMS_TO_TICKS(6000));
+                        esp_restart();
+                    },
+                    "confirmed_reboot",
+                    2048,
+                    nullptr,
+                    2,
+                    nullptr
+                );
+                if (task_created != pdPASS) {
+                    ESP_LOGE(TAG, "Failed to create reboot task");
+                    return std::string("Failed to schedule reboot.");
+                }
+                ESP_LOGW(TAG, "Confirmed voice reboot scheduled");
+                return std::string(
+                    "Confirmed. I will restart the device in six seconds."
+                );
+            }
+        );
+
         ESP_LOGI(
             TAG,
-            "Custom music and screen MCP tools registered"
+            "Custom music, screen, WiFi and reboot MCP tools registered"
         );
 
     }
