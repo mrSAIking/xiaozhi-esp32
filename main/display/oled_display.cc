@@ -990,13 +990,15 @@ void OledDisplay::SetEmotion(const char* emotion) {
 
     const bool changed = emotion_name_ != emotion;
 
-    if (changed) {
-        emotion_name_ = emotion;
-        neutral_emotion_ =
-            (emotion_name_ == "neutral");
-        blink_ticks_ = 0;
+    // Ignore repeated updates of the same emotion.
+    // Let the blink timer finish naturally.
+    if (!changed) {
+        return;
     }
-
+    
+    emotion_name_ = emotion;
+    neutral_emotion_ = (emotion_name_ == "neutral");
+    blink_ticks_ = 0;
     blink_active_ = false;
 
     lv_obj_remove_flag(
