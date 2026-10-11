@@ -9,6 +9,8 @@ class AudioService;
 
 class MusicHttpStreamer {
 public:
+    // Request a safe stop during PCM music playback.
+    static void RequestStop();
     // Download and play a song from:
     // https://github.com/mrSAIking/music
     //
