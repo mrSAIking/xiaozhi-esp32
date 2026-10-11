@@ -31,6 +31,16 @@ private:
     lv_obj_t* face_only_emotion_label_ = nullptr;
     bool face_only_mode_ = false;
 
+    // Custom robot face: independent eyes and mouth.
+    lv_obj_t* normal_eyes_[2] = {nullptr, nullptr};
+    lv_obj_t* normal_mouth_ = nullptr;
+    
+    lv_obj_t* fullscreen_eyes_[2] = {nullptr, nullptr};
+    lv_obj_t* fullscreen_mouth_ = nullptr;
+    
+    bool face_speaking_ = false;
+    bool eyes_closed_ = false;
+
     // Keep the full-screen face synchronized with the
     // current emotion and blink animation.
     void SyncFaceOnlyEmotion();
