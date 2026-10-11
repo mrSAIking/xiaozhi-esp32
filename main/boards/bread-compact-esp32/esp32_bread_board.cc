@@ -4,6 +4,7 @@
 #include "codecs/no_audio_codec.h"
 #include "system_reset.h"
 #include "application.h"
+#include "audio/music_http_streamer.h"
 #include "button.h"
 #include "config.h"
 #include "mcp_server.h"
@@ -146,12 +147,19 @@ private:
 
         gpio_config(&io_conf);
 
-        // BOOT button: toggle AI conversation.
+        
+        // BOOT button: stop music or toggle AI conversation.
         boot_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
 
             if (app.GetDeviceState() == kDeviceStateStarting) {
                 EnterWifiConfigMode();
+                return;
+            }
+
+            if (app.GetDeviceState() == kDeviceStateMusicPlaying) {
+                ESP_LOGI(TAG, "BOOT pressed: stopping music");
+                MusicHttpStreamer::RequestStop();
                 return;
             }
 
