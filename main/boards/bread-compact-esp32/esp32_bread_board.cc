@@ -5,6 +5,7 @@
 #include "system_reset.h"
 #include "application.h"
 #include "audio/music_http_streamer.h"
+#include "audio/music_catalog.h"
 #include "button.h"
 #include "config.h"
 #include "mcp_server.h"
@@ -196,87 +197,67 @@ private:
         // Preserve the existing lamp controller.
         static LampController lamp(LAMP_GPIO);
 
-        // Custom MP3 music playback tool.
-
-        
-        // List songs available in the GitHub music repository.
+        // Dynamic song list from GitHub songs.json.
         McpServer::GetInstance().AddTool(
             "self.music.list",
-
-            "List the actual songs available on this ESP32. "
-            "ALWAYS call this tool when the user asks what songs "
-            "are available, asks for the music list, or asks "
-            "you to name the songs. "
-            "Read the returned song titles aloud. "
-            "Do not invent additional song names.",
-
+            "Get the actual current song list from the GitHub music catalog. "
+            "ALWAYS call this tool when asked which songs are available, "
+            "what songs you have, or to name the songs. "
+            "Read the returned song titles aloud; do not invent titles.",
             PropertyList(),
-
             [](const PropertyList&) -> ReturnValue {
-                ESP_LOGI(TAG, "AI requested available songs");
-
-                return std::string(
-                    "Available songs:\n"
-                    "1. Criminal (criminal)\n"
-                    "2. Funk Song (funksong)\n"
-                    "3. Heat Waves (heatwaves)\n"
-                    "4. I Wanna Be Yours (iwannabeyours)\n"
-                    "5. Me and the Devil (meandthedevil)\n"
-                    "6. Succession Theme (success)\n"
-                    "7. Violin (violinsong)\n"
-                    "The names in parentheses are exact "
-                    "song_name values for self.music.play."
-                );
+                ESP_LOGI(TAG, "AI requested dynamic song list");
+                return MusicCatalog::GetInstance().ListSongs();
             }
         );
 
+        // PCM music playback with catalog-based title and filename matching.
         McpServer::GetInstance().AddTool(
             "self.music.play",
-
-            "Play a complete MP3 song through the device speaker. "
-            "Use this tool when the user asks to play a song. "
-            "For example, when the user says 'Play funksong', "
-            "call this tool with song_name='funksong'. "
-            "Do not include the .mp3 extension. "
-            "Songs are streamed from the configured GitHub music repository. "
-            "During music playback, AI voice processing is disabled. "
-            "When the song finishes, online AI listening resumes automatically.",
-
+            "Play a song from the GitHub music catalog using raw PCM audio. "
+            "When the user asks to play a song, pass its spoken title or "
+            "catalog song_name to this tool. The device resolves the title "
+            "to the exact lowercase PCM filename automatically. "
+            "Do not append .pcm or .mp3. "
+            "Call self.music.list when the user wants the available songs. "
+            "Music playback temporarily closes the AI audio channel, "
+            "then normal AI listening resumes after playback.",
             PropertyList({
-                Property(
-                    "song_name",
-                    kPropertyTypeString
-                )
+                Property("song_name", kPropertyTypeString)
             }),
-
             [](const PropertyList& properties) -> ReturnValue {
-                std::string song_name =
+                const std::string requested =
                     properties["song_name"].value<std::string>();
 
-                ESP_LOGI(
-                    TAG,
-                    "AI requested song: %s",
-                    song_name.c_str()
-                );
+                ESP_LOGI(TAG, "AI requested song: %s", requested.c_str());
 
-                bool started =
-                    Application::GetInstance().StartMusic(
-                        song_name
-                    );
+                const std::string filename =
+                    MusicCatalog::GetInstance().ResolveSong(requested);
 
-                if (!started) {
-                    ESP_LOGW(
-                        TAG,
-                        "Unable to start song: %s",
-                        song_name.c_str()
+                if (filename.empty()) {
+                    ESP_LOGW(TAG, "Song not found in catalog: %s",
+                             requested.c_str());
+                    return std::string(
+                        "That song is not in the current catalog, or "
+                        "the catalog could not be downloaded. "
+                        "Call self.music.list to check available songs."
                     );
                 }
 
+                ESP_LOGI(TAG, "Resolved song: %s -> %s",
+                         requested.c_str(), filename.c_str());
+
+                const bool started =
+                    Application::GetInstance().StartMusic(filename);
+
+                if (!started) {
+                    ESP_LOGW(TAG, "Unable to start song: %s",
+                             filename.c_str());
+                }
                 return started;
             }
         );
 
-        
         // Voice-controlled OLED screen modes.
         // Commands: "Face mode" and "Normal mode".
         McpServer::GetInstance().AddTool(
