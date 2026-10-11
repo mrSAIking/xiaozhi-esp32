@@ -197,6 +197,39 @@ private:
         static LampController lamp(LAMP_GPIO);
 
         // Custom MP3 music playback tool.
+
+        
+        // List songs available in the GitHub music repository.
+        McpServer::GetInstance().AddTool(
+            "self.music.list",
+
+            "List the actual songs available on this ESP32. "
+            "ALWAYS call this tool when the user asks what songs "
+            "are available, asks for the music list, or asks "
+            "you to name the songs. "
+            "Read the returned song titles aloud. "
+            "Do not invent additional song names.",
+
+            PropertyList(),
+
+            [](const PropertyList&) -> ReturnValue {
+                ESP_LOGI(TAG, "AI requested available songs");
+
+                return std::string(
+                    "Available songs:\n"
+                    "1. Criminal (criminal)\n"
+                    "2. Funk Song (funksong)\n"
+                    "3. Heat Waves (heatwaves)\n"
+                    "4. I Wanna Be Yours (iwannabeyours)\n"
+                    "5. Me and the Devil (meandthedevil)\n"
+                    "6. Succession Theme (success)\n"
+                    "7. Violin (violinsong)\n"
+                    "The names in parentheses are exact "
+                    "song_name values for self.music.play."
+                );
+            }
+        );
+
         McpServer::GetInstance().AddTool(
             "self.music.play",
 
