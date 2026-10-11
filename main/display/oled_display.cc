@@ -1007,15 +1007,20 @@ void OledDisplay::BlinkTimerCallback(lv_timer_t* timer) {
 
     // Alternate mouth opening while speaking or playing music.
     // Updates roughly every 240 milliseconds.
-    if (mouth_active && self->blink_ticks_ % 2 == 0) {
-        static bool mouth_open = false;
-        mouth_open = !mouth_open;
-
+   // Animate mouth independently of the eye blink timer.
+    // Change mouth shape approximately every 240 ms.
+    if (mouth_active) {
+        const bool mouth_open =
+            ((lv_tick_get() / 240U) % 2U) == 0U;
+    
         lv_obj_set_height(
-            self->normal_mouth_, mouth_open ? 7 : 3
+            self->normal_mouth_,
+            mouth_open ? 7 : 3
         );
+    
         lv_obj_set_height(
-            self->fullscreen_mouth_, mouth_open ? 12 : 4
+            self->fullscreen_mouth_,
+            mouth_open ? 12 : 4
         );
     }
 
