@@ -9,7 +9,7 @@
 // Single owner after initialization: the LVGL display task.
 class Ili9488 {
 public:
-    static constexpr int kWidth = 320, kHeight = 480, kStripRows = 8;
+    static constexpr int kWidth = 320, kHeight = 480, kStripRows = 16;
     Ili9488();
     void RunColorTest();
     void Flush(const lv_area_t& area, const uint8_t* pixels, size_t stride, size_t capacity);

@@ -2,7 +2,7 @@
 
 #include <array>
 #include <atomic>
-#include "avatar_math.h"
+#include "avatar_pose.h"
 #include "display/lcd_display.h"
 #include "ili9488.h"
 
@@ -20,9 +20,9 @@ private:
     void Tick();
     void Patch(const avatar::Rect& rect, int offset);
     void LoadMode(int selected, int64_t ms);
-    int RenderMotionBand(const avatar::Rect& band, int amount, float arm, bool right);
+    bool Render(avatar::Rect area);
     bool Invalidate(const avatar::Rect& rect);
-    void CheckBreathFlush(const lv_area_t& area, const lv_draw_buf_t& buffer);
+    void RefreshComplete();
     void (*after_refresh_)() = nullptr;  // Protected by the LVGL port lock.
     Ili9488 panel_driver_;
     lv_obj_t* setup_screen_ = nullptr;
@@ -34,11 +34,12 @@ private:
     std::atomic<bool> preview_requested_{false};
     int64_t preview_until_ = 0;
     int current_mode_ = -1;
-    std::array<avatar::BreathAxis, Ili9488::kWidth> breath_axis_{};
-    int next_motion_row_ = 0;
-    int64_t breath_started_ = 0;
-    bool breath_probe_done_ = false;
-    int probe_x_ = -1, probe_y_ = -1;
+    uint16_t* source_ = nullptr;
+    avatar::Pose pose_{};
+    int64_t due_ms_ = 0, motion_ms_ = 0, last_pose_ms_ = 0;
+    int64_t pose_start_us_ = 0, stats_start_us_ = 0;
+    int frame_cost_ms_ = 0, completed_ = 0;
+    unsigned transfer_bytes_ = 0;
     int eye_ = 0, mouth_ = 0;
-    int64_t blink_at_ = 0, breath_at_ = 0, mouth_at_ = 0;
+    int64_t blink_at_ = 0, mouth_at_ = 0;
 };

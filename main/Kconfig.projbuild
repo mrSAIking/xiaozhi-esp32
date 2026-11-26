@@ -721,7 +721,7 @@ config ANIME_BREATH_PERIOD_MS
     int "Avatar breathing cycle in milliseconds"
     depends on BOARD_TYPE_ANIME_COMPANION_S3
     range 2000 8000
-    default 6500
+    default 4800
 
 config ANIME_ARM_FULL_PX
     int "Full-body arm sway amplitude (pixels)"
@@ -736,10 +736,34 @@ config ANIME_ARM_HALF_PX
     default 3
 
 config ANIME_ARM_PERIOD_MS
-    int "Arm sway period (milliseconds)"
+    int "Left arm sway period (milliseconds)"
     depends on BOARD_TYPE_ANIME_COMPANION_S3
-    range 6000 12000
-    default 8500
+    range 4000 12000
+    default 5500
+
+config ANIME_RIGHT_ARM_PERIOD_MS
+    int "Right arm period (ms)"
+    depends on BOARD_TYPE_ANIME_COMPANION_S3
+    range 4000 12000
+    default 6500
+
+config ANIME_HEAD_TILT
+    int "Head tilt (tenths of a degree)"
+    depends on BOARD_TYPE_ANIME_COMPANION_S3
+    range 0 20
+    default 15
+
+config ANIME_HEAD_PERIOD_MS
+    int "Head cycle (ms)"
+    depends on BOARD_TYPE_ANIME_COMPANION_S3
+    range 7000 9000
+    default 8200
+
+config ANIME_TARGET_FPS
+    int "Target idle poses per second"
+    depends on BOARD_TYPE_ANIME_COMPANION_S3
+    range 10 30
+    default 25
 
 config ANIME_SETUP_UI_ONLY
     bool "Keep the Xiaozhi UI active for display diagnostics"

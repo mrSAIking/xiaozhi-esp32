@@ -10,6 +10,10 @@ permissions:
 jobs:
   firmware:
     if: github.ref == 'refs/heads/anime-companion'
+    strategy:
+      fail-fast: false
+      matrix:
+        spi_mhz: [10, 20, 27, 40]
     runs-on: ubuntu-latest
     container: espressif/idf:release-v6.1
     defaults:
@@ -26,19 +30,41 @@ jobs:
           g++ -std=c++17 -pthread -Imain/audio -Imain/boards/anime-companion-s3 \
             scripts/tests/anime_animation_test.cc -o /tmp/test-avatar
           /tmp/test-avatar
+          g++ -O2 -std=c++17 -Imain/boards/anime-companion-s3 scripts/tests/anime_pose_test.cc -o /tmp/test-pose
+          /tmp/test-pose
+      - name: Render and verify desktop previews
+        if: matrix.spi_mhz == 10
+        run: |
+          source "$IDF_PATH/export.sh"
+          g++ -O2 -std=c++17 -Imain/boards/anime-companion-s3 scripts/anime_preview.cc -o /tmp/avatar-preview
+          python scripts/anime_preview.py /tmp/avatar-preview previews
+      - uses: actions/upload-artifact@v4
+        if: matrix.spi_mhz == 10
+        with:
+          name: desktop-previews-${{ github.sha }}
+          path: previews/*.gif
+          if-no-files-found: error
       - name: Build ESP32-S3 N16R8 firmware
         run: |
           source "$IDF_PATH/export.sh"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           idf.py --version
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('main/boards/anime-companion-s3/config.json')
+          board = json.loads(p.read_text())
+          board['builds'][0]['sdkconfig_append'].append('CONFIG_ANIME_SPI_MHZ=${{ matrix.spi_mhz }}')
+          p.write_text(json.dumps(board))
+          PY
           python scripts/build.py anime-companion-s3 --name anime-companion-s3
       - name: Verify merged image and report memory use
         run: |
           source "$IDF_PATH/export.sh"
           python -m unittest discover -s scripts/tests -p test_assets.py -v
           grep -Fx '# CONFIG_ANIME_PANEL_SELF_TEST is not set' sdkconfig
-          grep -Fx CONFIG_ANIME_BREATH_PERIOD_MS=6500 sdkconfig
-          grep -Fx CONFIG_ANIME_SPI_MHZ=10 sdkconfig
+          grep -Fx CONFIG_ANIME_BREATH_PERIOD_MS=4800 sdkconfig
+          grep -Fx CONFIG_ANIME_SPI_MHZ=${{ matrix.spi_mhz }} sdkconfig
           grep -Fx CONFIG_ESP_BROWNOUT_DET=y sdkconfig
           grep -Fx CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y sdkconfig
           grep -Fx CONFIG_ESP_COREDUMP_ENABLE_TO_UART=y sdkconfig
@@ -52,7 +78,7 @@ jobs:
           idf.py size | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
-          name: anime-companion-s3-${{ github.sha }}
+          name: anime-companion-s3-${{ matrix.spi_mhz }}MHz-${{ github.sha }}
           path: |
             build/merged-binary.bin
             build/xiaozhi.elf

@@ -14,7 +14,7 @@ extern "C" const uint16_t companion_pixels[] asm("_binary_companion_pixels_bin_s
 namespace {
 constexpr int kWidth = Ili9488::kWidth, kHeight = Ili9488::kHeight;
 constexpr size_t kFrameBytes = kWidth * kHeight * sizeof(uint16_t);
-constexpr int kBreathBandRows = 16;
+
 constexpr int kPreviewMs = 5000;
 const uint16_t* Pixels(int offset) { return companion_pixels + offset / 2; }
 
@@ -54,13 +54,14 @@ AvatarDisplay::AvatarDisplay() : LcdDisplay(nullptr, nullptr, kWidth, kHeight) {
             const auto* buffer = lv_display_get_buf_active(display);
             ESP_ERROR_CHECK(buffer && buffer->data == pixels ? ESP_OK : ESP_ERR_INVALID_STATE);
             avatar->panel_driver_.Flush(*area, pixels, buffer->header.stride, buffer->data_size);
-            avatar->CheckBreathFlush(*area, *buffer);
+            avatar->transfer_bytes_ += 3u * lv_area_get_width(area) * lv_area_get_height(area);
             lv_display_flush_ready(display);
         });
     lv_display_add_event_cb(
         display_,
         [](lv_event_t* event) {
             auto* avatar = static_cast<AvatarDisplay*>(lv_event_get_user_data(event));
+            avatar->RefreshComplete();
             if (auto callback = avatar->after_refresh_) {
                 avatar->after_refresh_ = nullptr;
                 Application::GetInstance().Schedule(callback);
@@ -94,7 +95,12 @@ void AvatarDisplay::SetupUI() {
 #endif
     frame_ = static_cast<uint16_t*>(
         heap_caps_aligned_alloc(64, kFrameBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-    if (!frame_) {
+    source_ = static_cast<uint16_t*>(
+        heap_caps_aligned_alloc(64, kFrameBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    if (!frame_ || !source_) {
+        heap_caps_free(frame_);
+        heap_caps_free(source_);
+        frame_ = source_ = nullptr;
         ESP_LOGE("Avatar", "No PSRAM framebuffer; retaining setup screen");
         return;
     }
@@ -130,99 +136,43 @@ bool AvatarDisplay::Invalidate(const avatar::Rect& rect) {
 }
 
 void AvatarDisplay::Patch(const avatar::Rect& rect, int offset) {
-    auto* dst = frame_ + rect.y * kWidth + rect.x;
-    const auto* src = Pixels(offset);
-    for (int i = 0; i < rect.h; ++i, dst += kWidth, src += rect.w) {
-        std::memcpy(dst, src, rect.w * sizeof(uint16_t));
-    }
-    Invalidate(rect);
+    avatar::Composite(source_, rect, Pixels(offset));
 }
 
 void AvatarDisplay::LoadMode(int selected, int64_t ms) {
     const auto& mode = avatar::modes[selected];
     std::memcpy(frame_, Pixels(mode.base), kFrameBytes);
+    std::memcpy(source_, frame_, kFrameBytes);
     current_mode_ = selected;
     eye_ = mouth_ = 0;
     blink_at_ = NextBlink(ms, mode);
-    mouth_at_ = breath_started_ = breath_at_ = ms;
-    next_motion_row_ = 0;
-    breath_probe_done_ = false;
-    probe_x_ = probe_y_ = -1;
-    const auto& region = avatar::kBreathingRegions[selected];
-    for (int x = 0; x < region.w; ++x) {
-        breath_axis_[x] = avatar::BreathX(float(x) / (region.w - 1));
-    }
+    mouth_at_ = due_ms_ = last_pose_ms_ = ms;
+    motion_ms_ = pose_start_us_ = stats_start_us_ = 0;
+    pose_ = {};
+    completed_ = transfer_bytes_ = frame_cost_ms_ = 0;
 }
 
-int AvatarDisplay::RenderMotionBand(const avatar::Rect& r, int amount, float arm, bool right_arm) {
-    const auto* base = Pixels(avatar::modes[current_mode_].base);
-    int left = r.w, right = -1, top = 0, bottom = -1;
-    for (int y = 0; y < r.h; ++y) {
-        const int row = (r.y + y) * kWidth + r.x;
-        // Amount is Q6 pixels. Convert to Q4 for RGB565 sampling.
-        const auto& torso = avatar::kBreathingRegions[current_mode_];
-        const int py = r.y + y;
-        const float weight = amount * .25f * avatar::BreathY(float(py - torso.y) / (torso.h - 1));
-        const auto mask = avatar::ArmRow(current_mode_, py);
-        for (int x = 0; x < r.w; ++x) {
-            const int px = r.x + x;
-            const int tx = px - torso.x;
-            const auto axis = tx >= 0 && tx < torso.w ? breath_axis_[tx] : avatar::BreathAxis{};
-            const float spread =
-                axis.spread * weight +
-                16.f * arm * avatar::ArmWeight(mask, right_arm ? kWidth - 1 - px : px);
-            const int dx = int(spread + (spread < 0 ? -.5f : .5f));
-            const int dy = int(axis.lift * weight + .5f);
-            const uint16_t pixel = avatar::Sample565(base + row + x, kWidth, dx, dy);
-            if (frame_[row + x] == pixel)
-                continue;
-            frame_[row + x] = pixel;
-            left = std::min(left, x);
-            right = std::max(right, x);
-            if (bottom < 0)
-                top = y;
-            bottom = y;
-            if (!breath_probe_done_ && probe_x_ < 0 && pixel != base[row + x]) {
-                probe_x_ = r.x + x;
-                probe_y_ = r.y + y;
-            }
-        }
-    }
-    if (right < left)
-        return 0;
-    const avatar::Rect dirty{r.x + left, r.y + top, right - left + 1, bottom - top + 1};
-    return Invalidate(dirty) ? dirty.w * dirty.h : 0;
+bool AvatarDisplay::Render(avatar::Rect area) {
+    auto dirty = avatar::RenderRegion(source_, frame_, current_mode_, pose_, area);
+    return dirty.w > 0 && dirty.h > 0 && Invalidate(dirty);
 }
 
-void AvatarDisplay::CheckBreathFlush(const lv_area_t& area, const lv_draw_buf_t& buffer) {
-    if (probe_x_ < 0)
+void AvatarDisplay::RefreshComplete() {
+    if (!pose_start_us_)
         return;
-    lv_area_t image;
-    lv_obj_get_coords(image_, &image);
-    const int x = image.x1 + probe_x_, y = image.y1 + probe_y_;
-    if (x < area.x1 || x > area.x2 || y < area.y1 || y > area.y2)
-        return;
-    const int index = probe_y_ * kWidth + probe_x_;
-    const uint16_t base = Pixels(avatar::modes[current_mode_].base)[index];
-    const uint16_t expected = frame_[index];
-    if (expected == base) {
-        probe_x_ = -1;
-        return;
+    const auto now = esp_timer_get_time();
+    const int cost = (now - pose_start_us_ + 999) / 1000;
+    frame_cost_ms_ = std::max(cost, (frame_cost_ms_ * 7 + cost) / 8);
+    pose_start_us_ = 0;
+    ++completed_;
+    const auto window = now - stats_start_us_;
+    if (window >= 5000000) {
+        ESP_LOGI("Avatar", "%s: %.1f completed poses/s, %.0f RGB666 bytes/s, recent frame %d ms",
+                 current_mode_ ? "half" : "full", completed_ * 1e6 / window,
+                 transfer_bytes_ * 1e6 / window, frame_cost_ms_);
+        stats_start_us_ = now;
+        completed_ = transfer_bytes_ = 0;
     }
-    uint16_t sent;
-    std::memcpy(&sent,
-                buffer.data + (y - area.y1) * buffer.header.stride + (x - area.x1) * sizeof(sent),
-                sizeof(sent));
-    if (sent == expected) {
-        ESP_LOGI("Avatar",
-                 "Breathing pixel reached SPI completion in %s mode (%d,%d): %04x -> %04x",
-                 current_mode_ == 0 ? "full_body" : "half_body", x, y, base, sent);
-    } else {
-        ESP_LOGW("Avatar", "Breathing flush mismatch at (%d,%d): expected %04x, sent %04x", x, y,
-                 expected, sent);
-    }
-    breath_probe_done_ = true;
-    probe_x_ = -1;
 }
 
 void AvatarDisplay::Tick() {
@@ -242,7 +192,7 @@ void AvatarDisplay::Tick() {
         preview_until_ = 0;
     if (!show && ms >= preview_until_) {
         if (lv_screen_active() == avatar_screen_) {
-            probe_x_ = -1;
+            stats_start_us_ = pose_start_us_ = 0;
             lv_screen_load(setup_screen_);
         }
         return;
@@ -262,8 +212,9 @@ void AvatarDisplay::Tick() {
         if (eye == 0)
             blink_at_ = NextBlink(ms, mode);
     }
-    bool face_changed = eye != eye_;
-    if (face_changed) {
+    const bool eye_changed = eye != eye_;
+    bool mouth_changed = false;
+    if (eye_changed) {
         Patch(mode.eyes, mode.eye_offsets[eye]);
         eye_ = eye;
     }
@@ -275,31 +226,40 @@ void AvatarDisplay::Tick() {
                 ? avatar::MouthFrame(app.GetAudioService().GetPlaybackRms(now_us), mode.thresholds)
                 : 0;
         if (mouth != mouth_) {
-            face_changed = true;
+            mouth_changed = true;
             Patch(mode.mouth, mode.mouth_offsets[mouth]);
             mouth_ = mouth;
         }
         mouth_at_ = ms + mode.speech_ms;
     }
-    const int amplitude = selected ? CONFIG_ANIME_ARM_HALF_PX : CONFIG_ANIME_ARM_FULL_PX;
-    if (face_changed || ms < breath_at_ || (!amplitude && !CONFIG_ANIME_BREATH_AMPLITUDE_PX))
-        return;
-
-    const auto& region = avatar::kMotionRegions[selected];
-    const int rows = std::min(kBreathBandRows, region.h - next_motion_row_);
-    const int64_t elapsed = ms - breath_started_;
-    const int breath = avatar::BreathAmount(elapsed, CONFIG_ANIME_BREATH_PERIOD_MS,
-                                            CONFIG_ANIME_BREATH_AMPLITUDE_PX);
-    int pixels = 0;
-    for (int side = 0; side < 2; ++side) {
-        const avatar::Rect band{region.x + side * region.w / 2, region.y + next_motion_row_,
-                                region.w / 2, rows};
-        pixels += RenderMotionBand(
-            band, breath, avatar::ArmOffset(elapsed, CONFIG_ANIME_ARM_PERIOD_MS, amplitude, side),
-            side);
+    if (!stats_start_us_) {
+        stats_start_us_ = now_us;
+        completed_ = transfer_bytes_ = 0;
     }
-    next_motion_row_ = (next_motion_row_ + rows) % region.h;
-    // Yield between bands. Charge actual invalidated rectangles at the configured wire rate.
-    const int wire_us = pixels * 24 / CONFIG_ANIME_SPI_MHZ;
-    breath_at_ = ms + std::max(10, wire_us * (speaking ? 3 : 2) / 1000);
+    if (eye_changed || mouth_changed) {
+        if (eye_changed)
+            Render(avatar::FaceBounds(mode.eyes));
+        if (mouth_changed)
+            Render(avatar::FaceBounds(mode.mouth));
+        return;
+    }
+    if (ms < due_ms_ || pose_start_us_ || ms + frame_cost_ms_ >= blink_at_ ||
+        (speaking && frame_cost_ms_ >= mode.speech_ms))
+        return;
+    const int interval = std::max(1000 / CONFIG_ANIME_TARGET_FPS, frame_cost_ms_ + 5);
+    motion_ms_ += std::clamp<int64_t>(ms - last_pose_ms_, 0, interval);
+    last_pose_ms_ = ms;
+    due_ms_ = ms + interval;
+    const avatar::MotionConfig cfg{CONFIG_ANIME_BREATH_PERIOD_MS,
+                                   CONFIG_ANIME_BREATH_AMPLITUDE_PX,
+                                   CONFIG_ANIME_ARM_PERIOD_MS,
+                                   CONFIG_ANIME_RIGHT_ARM_PERIOD_MS,
+                                   selected ? CONFIG_ANIME_ARM_HALF_PX : CONFIG_ANIME_ARM_FULL_PX,
+                                   CONFIG_ANIME_HEAD_PERIOD_MS,
+                                   CONFIG_ANIME_HEAD_TILT};
+    pose_ = avatar::MakePose(motion_ms_, selected, cfg);
+    bool changed = false;
+    avatar::PoseRegions(selected, [&](avatar::Rect area) { changed |= Render(area); });
+    if (changed)
+        pose_start_us_ = now_us;
 }
