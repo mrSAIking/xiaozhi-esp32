@@ -12,6 +12,8 @@ public:
     void SetHalfBody(bool half) { requested_mode_.store(half ? 1 : 0); }
 
 private:
+    // Some inherited stock UI methods assume that the recursive lock succeeds.
+    bool Lock(int) override;
     void Tick();
     void Patch(const avatar::Rect& rect, int offset);
     void Breathe(const avatar::Mode& mode, float phase);

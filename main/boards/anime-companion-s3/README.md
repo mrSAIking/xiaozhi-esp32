@@ -18,3 +18,11 @@ The `self.avatar.set_mode` MCP tool accepts `{"mode":"half_body"}` or `{"mode":"
 Both OTA slots are 4.5 MiB. The remaining 6.875 MiB stores the usual Xiaozhi assets. CI decodes the compiled partition table, verifies flashed binaries byte-for-byte against the merged image, and reports slot headroom and linker size information.
 
 On the wired unit, check portrait orientation and RGB primary colors at 10 MHz, provisioning and activation, microphone left-channel capture, wake-word response, server audio, interrupted speech, repeated MCP switches and LED brightness. Measure mouth-to-speaker timing and available internal heap under simultaneous playback and animation before testing a faster SPI clock.
+
+## Startup diagnostics
+
+`CONFIG_ANIME_PANEL_SELF_TEST` defaults to enabled. Before LVGL, audio or Wi-Fi starts, the driver fills the entire panel red, green, blue, white and black, with a 700 ms hold on each color. The serial log records reset, panel configuration, each fill, the first LVGL flush and the start of Wi-Fi. A completed SPI transfer confirms the ESP32 sent the pixels. Check the panel itself for full-screen coverage and correct color order.
+
+If the solid colors work but the UI fails, enable `CONFIG_ANIME_SETUP_UI_ONLY` in a diagnostic build. The original Xiaozhi setup UI still runs while the avatar framebuffer and timer are skipped. Capture the complete serial log for each pass. For a brownout at AP startup, measure the board supply at the ESP32-S3 during Wi-Fi transmission and check the backlight and speaker load. Brownout detection stays enabled.
+
+Each firmware artifact includes `merged-binary.bin`, `xiaozhi.elf` and `xiaozhi.map`. Match the panic's ELF SHA-256 prefix against the ELF before using `xtensa-esp32s3-elf-addr2line -aipfC -e xiaozhi.elf` with the reported PCs.

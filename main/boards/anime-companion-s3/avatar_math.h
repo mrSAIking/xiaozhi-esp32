@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 namespace avatar {
@@ -25,6 +26,11 @@ inline void Expand565(uint16_t pixel, uint8_t* out) {
     out[0] = ((r << 1) | (r >> 4)) << 2;
     out[1] = ((pixel >> 5) & 63) << 2;
     out[2] = ((b << 1) | (b >> 4)) << 2;
+}
+
+inline bool FitsRgb565Buffer(int width, int rows, size_t stride, size_t capacity) {
+    return width > 0 && rows > 0 && stride >= static_cast<size_t>(width) * 2 &&
+           stride % alignof(uint16_t) == 0 && static_cast<size_t>(rows) <= capacity / stride;
 }
 
 inline int EyeFrame(int elapsed, const int* holds) {

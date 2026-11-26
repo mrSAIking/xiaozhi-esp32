@@ -3,6 +3,7 @@
 #include <esp_heap_caps.h>
 #include <esp_lvgl_port.h>
 #include <esp_random.h>
+#include <esp_system.h>
 #include <cmath>
 #include <cstring>
 
@@ -22,35 +23,55 @@ int64_t NextBlink(int64_t ms, const avatar::Mode& mode) {
 }  // namespace
 
 AvatarDisplay::AvatarDisplay() : LcdDisplay(nullptr, nullptr, kWidth, kHeight) {
+    ESP_LOGI("Avatar", "Previous reset: %s", Board::ResetReasonName(esp_reset_reason()));
+#if CONFIG_ANIME_PANEL_SELF_TEST
+    panel_driver_.RunColorTest();
+    ESP_ERROR_CHECK(heap_caps_check_integrity_all(true) ? ESP_OK : ESP_FAIL);
+#endif
+    ESP_LOGI("Avatar", "Starting LVGL port");
     lvgl_port_cfg_t cfg = ESP_LVGL_PORT_INIT_CONFIG();
     cfg.task_priority = 1;
     cfg.task_affinity = 1;
     cfg.task_max_sleep_ms = 10;
     ESP_ERROR_CHECK(lvgl_port_init(&cfg));
     DisplayLockGuard guard(this);
-    constexpr size_t bytes = kWidth * Ili9488::kStripRows * sizeof(uint16_t);
+    const size_t bytes =
+        lv_draw_buf_width_to_stride(kWidth, LV_COLOR_FORMAT_RGB565) * Ili9488::kStripRows;
     auto* strip = heap_caps_aligned_alloc(64, bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     ESP_ERROR_CHECK(strip ? ESP_OK : ESP_ERR_NO_MEM);
     display_ = lv_display_create(kWidth, kHeight);
     ESP_ERROR_CHECK(display_ ? ESP_OK : ESP_ERR_NO_MEM);
+    // SetupUI publishes a complete stock screen before the first refresh.
+    auto* refresh = lv_display_get_refr_timer(display_);
+    lv_timer_pause(refresh);
     lv_display_set_color_format(display_, LV_COLOR_FORMAT_RGB565);
     lv_display_set_buffers(display_, strip, nullptr, bytes, LV_DISPLAY_RENDER_MODE_PARTIAL);
     lv_display_set_user_data(display_, &panel_driver_);
-    lv_display_set_flush_cb(display_, [](lv_display_t* display, const lv_area_t* area,
-                                         uint8_t* pixels) {
-        auto* panel = static_cast<Ili9488*>(lv_display_get_user_data(display));
-        panel->Flush(*area, pixels,
-                     lv_draw_buf_width_to_stride(lv_area_get_width(area), LV_COLOR_FORMAT_RGB565));
-        lv_display_flush_ready(display);
-    });
-    lv_timer_set_period(lv_display_get_refr_timer(display_), 10);
+    lv_display_set_flush_cb(
+        display_, [](lv_display_t* display, const lv_area_t* area, uint8_t* pixels) {
+            auto* panel = static_cast<Ili9488*>(lv_display_get_user_data(display));
+            const auto* buffer = lv_display_get_buf_active(display);
+            ESP_ERROR_CHECK(buffer && buffer->data == pixels ? ESP_OK : ESP_ERR_INVALID_STATE);
+            panel->Flush(*area, pixels, buffer->header.stride, buffer->data_size);
+            lv_display_flush_ready(display);
+        });
+    lv_timer_set_period(refresh, 10);
+    ESP_LOGI("Avatar", "LVGL display registered, PSRAM strip=%zu bytes, refresh paused", bytes);
 }
 
+bool AvatarDisplay::Lock(int) { return lvgl_port_lock(0); }
+
 void AvatarDisplay::SetupUI() {
+    DisplayLockGuard guard(this);
     if (IsSetupUICalled())
         return;
+    ESP_LOGI("Avatar", "Creating Xiaozhi setup screen");
     LcdDisplay::SetupUI();
-    DisplayLockGuard guard(this);
+    lv_timer_resume(lv_display_get_refr_timer(display_));
+#if CONFIG_ANIME_SETUP_UI_ONLY
+    ESP_LOGI("Avatar", "Setup UI only, avatar disabled");
+    return;
+#endif
     frame_ = static_cast<uint16_t*>(
         heap_caps_aligned_alloc(64, kFrameBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
     if (!frame_) {
@@ -67,6 +88,7 @@ void AvatarDisplay::SetupUI() {
     descriptor_.header.stride = kWidth * 2;
     descriptor_.data_size = kFrameBytes;
     descriptor_.data = reinterpret_cast<const uint8_t*>(frame_);
+    std::memcpy(frame_, Pixels(avatar::modes[0].base), kFrameBytes);
     lv_image_set_src(image_, &descriptor_);
     lv_obj_set_pos(image_, 0, 0);
     lv_timer_create(
@@ -74,6 +96,7 @@ void AvatarDisplay::SetupUI() {
             static_cast<AvatarDisplay*>(lv_timer_get_user_data(timer))->Tick();
         },
         10, this);
+    ESP_LOGI("Avatar", "UI and avatar ready, animations held until the avatar screen is active");
 }
 
 void AvatarDisplay::Invalidate(const avatar::Rect& rect) {

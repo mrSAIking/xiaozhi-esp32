@@ -6,6 +6,7 @@
 #include "mcp_server.h"
 #include "wifi_board.h"
 
+#include <esp_heap_caps.h>
 #include <led_strip.h>
 
 namespace {
@@ -64,6 +65,15 @@ public:
     }
 
     Display* GetDisplay() override { return &display_; }
+    void StartNetwork() override {
+#if CONFIG_ANIME_PANEL_SELF_TEST
+        ESP_ERROR_CHECK(heap_caps_check_integrity_all(true) ? ESP_OK : ESP_FAIL);
+#endif
+        ESP_LOGI("AnimeBoard", "Starting Wi-Fi, internal free heap=%zu, PSRAM free heap=%zu",
+                 heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                 heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+        WifiBoard::StartNetwork();
+    }
     AudioCodec* GetAudioCodec() override {
         static NoAudioCodecSimplex codec(16000, 24000, pins::speaker_bclk, pins::speaker_lrc,
                                          pins::speaker_din, I2S_STD_SLOT_LEFT, pins::mic_sck,

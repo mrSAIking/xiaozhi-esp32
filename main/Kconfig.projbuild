@@ -703,6 +703,22 @@ config ANIME_LED_BRIGHTNESS
     range 0 255
     default 12
 
+config ANIME_PANEL_SELF_TEST
+    bool "Show ILI9488 solid colors before starting LVGL"
+    depends on BOARD_TYPE_ANIME_COMPANION_S3
+    default y
+    help
+        Write red, green, blue, white and black directly to display RAM
+        before starting LVGL, audio or Wi-Fi.
+
+config ANIME_SETUP_UI_ONLY
+    bool "Keep the Xiaozhi UI active for display diagnostics"
+    depends on BOARD_TYPE_ANIME_COMPANION_S3
+    default n
+    help
+        Skip avatar allocation, screen switches and animations to isolate
+        the stock UI, LVGL refresh path and panel transport.
+
 config RESPEAKER_I2S_EXTERNAL_CLOCK_48K
     bool "ReSpeaker: XMOS supplies 48 kHz I2S clocks"
     depends on BOARD_TYPE_SEEED_XIAO_ESP32S3_RESPEAKER_XVF3800

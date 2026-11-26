@@ -1298,8 +1298,11 @@ void LcdDisplay::SetTheme(Theme* theme) {
 
     auto lvgl_theme = static_cast<LvglTheme*>(theme);
 
-    // Get the active screen
-    lv_obj_t* screen = lv_screen_active();
+    if (!lock || container_ == nullptr) {
+        return;
+    }
+    // A board can display another screen while the stock UI owns these widgets.
+    lv_obj_t* screen = lv_obj_get_screen(container_);
 
     // Set font
     auto text_font = lvgl_theme->text_font()->font();
