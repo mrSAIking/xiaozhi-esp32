@@ -706,7 +706,7 @@ config ANIME_LED_BRIGHTNESS
 config ANIME_PANEL_SELF_TEST
     bool "Show ILI9488 solid colors before starting LVGL"
     depends on BOARD_TYPE_ANIME_COMPANION_S3
-    default y
+    default n
     help
         Write red, green, blue, white and black directly to display RAM
         before starting LVGL, audio or Wi-Fi.
@@ -721,7 +721,25 @@ config ANIME_BREATH_PERIOD_MS
     int "Avatar breathing cycle in milliseconds"
     depends on BOARD_TYPE_ANIME_COMPANION_S3
     range 2000 8000
-    default 4000
+    default 6500
+
+config ANIME_ARM_FULL_PX
+    int "Full-body arm sway amplitude (pixels)"
+    depends on BOARD_TYPE_ANIME_COMPANION_S3
+    range 0 2
+    default 2
+
+config ANIME_ARM_HALF_PX
+    int "Half-body arm sway amplitude (pixels)"
+    depends on BOARD_TYPE_ANIME_COMPANION_S3
+    range 0 3
+    default 3
+
+config ANIME_ARM_PERIOD_MS
+    int "Arm sway period (milliseconds)"
+    depends on BOARD_TYPE_ANIME_COMPANION_S3
+    range 6000 12000
+    default 8500
 
 config ANIME_SETUP_UI_ONLY
     bool "Keep the Xiaozhi UI active for display diagnostics"

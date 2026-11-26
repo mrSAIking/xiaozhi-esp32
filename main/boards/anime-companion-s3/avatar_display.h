@@ -20,7 +20,7 @@ private:
     void Tick();
     void Patch(const avatar::Rect& rect, int offset);
     void LoadMode(int selected, int64_t ms);
-    int Breathe(const avatar::Rect& region, int amount);
+    int RenderMotionBand(const avatar::Rect& band, int amount, float arm, bool right);
     bool Invalidate(const avatar::Rect& rect);
     void CheckBreathFlush(const lv_area_t& area, const lv_draw_buf_t& buffer);
     void (*after_refresh_)() = nullptr;  // Protected by the LVGL port lock.
@@ -35,7 +35,7 @@ private:
     int64_t preview_until_ = 0;
     int current_mode_ = -1;
     std::array<avatar::BreathAxis, Ili9488::kWidth> breath_axis_{};
-    int last_breath_amount_ = 0;
+    int next_motion_row_ = 0;
     int64_t breath_started_ = 0;
     bool breath_probe_done_ = false;
     int probe_x_ = -1, probe_y_ = -1;

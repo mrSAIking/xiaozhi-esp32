@@ -15,7 +15,6 @@ namespace {
 constexpr int kWidth = Ili9488::kWidth, kHeight = Ili9488::kHeight;
 constexpr size_t kFrameBytes = kWidth * kHeight * sizeof(uint16_t);
 constexpr int kBreathBandRows = 16;
-constexpr int kMinBreathIntervalMs = 50;
 constexpr int kPreviewMs = 5000;
 const uint16_t* Pixels(int offset) { return companion_pixels + offset / 2; }
 
@@ -28,8 +27,8 @@ AvatarDisplay::AvatarDisplay() : LcdDisplay(nullptr, nullptr, kWidth, kHeight) {
     ESP_LOGI("Avatar", "Previous reset: %s", Board::ResetReasonName(esp_reset_reason()));
 #if CONFIG_ANIME_PANEL_SELF_TEST
     panel_driver_.RunColorTest();
-    ESP_ERROR_CHECK(heap_caps_check_integrity_all(true) ? ESP_OK : ESP_FAIL);
 #endif
+    ESP_ERROR_CHECK(heap_caps_check_integrity_all(true) ? ESP_OK : ESP_FAIL);
     ESP_LOGI("Avatar", "Starting LVGL port");
     lvgl_port_cfg_t cfg = ESP_LVGL_PORT_INIT_CONFIG();
     cfg.task_priority = 1;
@@ -146,7 +145,7 @@ void AvatarDisplay::LoadMode(int selected, int64_t ms) {
     eye_ = mouth_ = 0;
     blink_at_ = NextBlink(ms, mode);
     mouth_at_ = breath_started_ = breath_at_ = ms;
-    last_breath_amount_ = 0;
+    next_motion_row_ = 0;
     breath_probe_done_ = false;
     probe_x_ = probe_y_ = -1;
     const auto& region = avatar::kBreathingRegions[selected];
@@ -155,17 +154,23 @@ void AvatarDisplay::LoadMode(int selected, int64_t ms) {
     }
 }
 
-int AvatarDisplay::Breathe(const avatar::Rect& r, int amount) {
+int AvatarDisplay::RenderMotionBand(const avatar::Rect& r, int amount, float arm, bool right_arm) {
     const auto* base = Pixels(avatar::modes[current_mode_].base);
-    int dirty_pixels = 0;
     int left = r.w, right = -1, top = 0, bottom = -1;
     for (int y = 0; y < r.h; ++y) {
         const int row = (r.y + y) * kWidth + r.x;
         // Amount is Q6 pixels. Convert to Q4 for RGB565 sampling.
-        const float weight = amount * .25f * avatar::BreathY(float(y) / (r.h - 1));
+        const auto& torso = avatar::kBreathingRegions[current_mode_];
+        const int py = r.y + y;
+        const float weight = amount * .25f * avatar::BreathY(float(py - torso.y) / (torso.h - 1));
+        const auto mask = avatar::ArmRow(current_mode_, py);
         for (int x = 0; x < r.w; ++x) {
-            const auto axis = breath_axis_[x];
-            const float spread = axis.spread * weight;
+            const int px = r.x + x;
+            const int tx = px - torso.x;
+            const auto axis = tx >= 0 && tx < torso.w ? breath_axis_[tx] : avatar::BreathAxis{};
+            const float spread =
+                axis.spread * weight +
+                16.f * arm * avatar::ArmWeight(mask, right_arm ? kWidth - 1 - px : px);
             const int dx = int(spread + (spread < 0 ? -.5f : .5f));
             const int dy = int(axis.lift * weight + .5f);
             const uint16_t pixel = avatar::Sample565(base + row + x, kWidth, dx, dy);
@@ -182,17 +187,11 @@ int AvatarDisplay::Breathe(const avatar::Rect& r, int amount) {
                 probe_y_ = r.y + y;
             }
         }
-        if ((y + 1) % kBreathBandRows == 0 || y + 1 == r.h) {
-            if (right >= left) {
-                const avatar::Rect dirty{r.x + left, r.y + top, right - left + 1, bottom - top + 1};
-                if (Invalidate(dirty))
-                    dirty_pixels += dirty.w * dirty.h;
-            }
-            left = r.w;
-            right = bottom = -1;
-        }
     }
-    return dirty_pixels;
+    if (right < left)
+        return 0;
+    const avatar::Rect dirty{r.x + left, r.y + top, right - left + 1, bottom - top + 1};
+    return Invalidate(dirty) ? dirty.w * dirty.h : 0;
 }
 
 void AvatarDisplay::CheckBreathFlush(const lv_area_t& area, const lv_draw_buf_t& buffer) {
@@ -263,7 +262,8 @@ void AvatarDisplay::Tick() {
         if (eye == 0)
             blink_at_ = NextBlink(ms, mode);
     }
-    if (eye != eye_) {
+    bool face_changed = eye != eye_;
+    if (face_changed) {
         Patch(mode.eyes, mode.eye_offsets[eye]);
         eye_ = eye;
     }
@@ -275,21 +275,31 @@ void AvatarDisplay::Tick() {
                 ? avatar::MouthFrame(app.GetAudioService().GetPlaybackRms(now_us), mode.thresholds)
                 : 0;
         if (mouth != mouth_) {
+            face_changed = true;
             Patch(mode.mouth, mode.mouth_offsets[mouth]);
             mouth_ = mouth;
         }
         mouth_at_ = ms + mode.speech_ms;
     }
-    if (CONFIG_ANIME_BREATH_AMPLITUDE_PX > 0 && ms >= breath_at_) {
-        const int amount = avatar::BreathAmount(ms - breath_started_, CONFIG_ANIME_BREATH_PERIOD_MS,
-                                                CONFIG_ANIME_BREATH_AMPLITUDE_PX);
-        int dirty_pixels = 0;
-        if (amount != last_breath_amount_) {
-            dirty_pixels = Breathe(avatar::kBreathingRegions[selected], amount);
-            last_breath_amount_ = amount;
-        }
-        // Allow headroom for color conversion, command overhead and facial animation.
-        const int wire_ms = (dirty_pixels * 24) / (CONFIG_ANIME_SPI_MHZ * 1000);
-        breath_at_ = ms + std::max(kMinBreathIntervalMs, wire_ms * 3 / 2);
+    const int amplitude = selected ? CONFIG_ANIME_ARM_HALF_PX : CONFIG_ANIME_ARM_FULL_PX;
+    if (face_changed || ms < breath_at_ || (!amplitude && !CONFIG_ANIME_BREATH_AMPLITUDE_PX))
+        return;
+
+    const auto& region = avatar::kMotionRegions[selected];
+    const int rows = std::min(kBreathBandRows, region.h - next_motion_row_);
+    const int64_t elapsed = ms - breath_started_;
+    const int breath = avatar::BreathAmount(elapsed, CONFIG_ANIME_BREATH_PERIOD_MS,
+                                            CONFIG_ANIME_BREATH_AMPLITUDE_PX);
+    int pixels = 0;
+    for (int side = 0; side < 2; ++side) {
+        const avatar::Rect band{region.x + side * region.w / 2, region.y + next_motion_row_,
+                                region.w / 2, rows};
+        pixels += RenderMotionBand(
+            band, breath, avatar::ArmOffset(elapsed, CONFIG_ANIME_ARM_PERIOD_MS, amplitude, side),
+            side);
     }
+    next_motion_row_ = (next_motion_row_ + rows) % region.h;
+    // Yield between bands. Charge actual invalidated rectangles at the configured wire rate.
+    const int wire_us = pixels * 24 / CONFIG_ANIME_SPI_MHZ;
+    breath_at_ = ms + std::max(10, wire_us * (speaking ? 3 : 2) / 1000);
 }

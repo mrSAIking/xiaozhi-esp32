@@ -54,6 +54,28 @@ int main() {
     assert(avatar::MouthFrame(.065f, thresholds) == 2);
     assert(avatar::MouthFrame(.15f, thresholds) == 3);
 
+    for (int mode : {0, 1}) {
+        const auto r = avatar::kMotionRegions[mode];
+        for (int y = r.y; y < r.y + r.h; ++y) {
+            auto row = avatar::ArmRow(mode, y);
+            assert(avatar::ArmWeight(row, 160) == 0);
+            assert(avatar::ArmWeight(row, 0) == 0);
+            for (int x = 0; x < 320; ++x) {
+                float weight = avatar::ArmWeight(row, x);
+                assert(weight >= 0 && weight <= 1);
+                if (y <= (mode ? 264 : 116))
+                    assert(weight == 0);
+            }
+        }
+        auto wrist = avatar::ArmRow(mode, mode ? 453 : 247);
+        assert(avatar::ArmWeight(wrist, mode ? 32 : 99) > .85f);
+    }
+    for (int t = 0; t < 8500; ++t) {
+        float a = avatar::ArmOffset(t, 8500, 3, true);
+        assert(std::abs(a) <= 3 && std::abs(a - avatar::ArmOffset(t + 1, 8500, 3, true)) < .003f);
+    }
+    assert(avatar::Sample565(tile + 1, 2, -8, 8) == avatar::Sample565(tile, 2, 8, 8));
+
     PlaybackMeter meter;
     std::array<int16_t, 2400> pcm{};
     std::fill_n(pcm.begin(), 1200, -16384);

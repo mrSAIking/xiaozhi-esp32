@@ -88,14 +88,12 @@ public:
 
     Display* GetDisplay() override { return &display_; }
     void StartNetwork() override {
-#if CONFIG_ANIME_PANEL_SELF_TEST
         ESP_ERROR_CHECK(heap_caps_check_integrity_all(true) ? ESP_OK : ESP_FAIL);
         {
             DisplayLockGuard lock(&display_);
             ESP_ERROR_CHECK(lv_mem_test() == LV_RESULT_OK ? ESP_OK : ESP_FAIL);
         }
         ESP_LOGI("AnimeBoard", "ESP heap and LVGL allocator integrity checks passed");
-#endif
         ESP_LOGI("AnimeBoard", "Starting Wi-Fi, internal free heap=%zu, PSRAM free heap=%zu",
                  heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                  heap_caps_get_free_size(MALLOC_CAP_SPIRAM));

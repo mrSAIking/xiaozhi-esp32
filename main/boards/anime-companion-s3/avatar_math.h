@@ -67,6 +67,31 @@ inline float SmoothStep(float value) {
     return t * t * (3.f - 2.f * t);
 }
 
+// Bounding rows stop above the knees in full-body and at the crop in half-body.
+inline constexpr Rect kMotionRegions[] = {{78, 75, 164, 199}, {0, 213, 320, 267}};
+struct ArmMaskRow {
+    float center, radius, strength;
+};
+
+inline ArmMaskRow ArmRow(int mode, int y) {
+    const int shoulder = mode ? 264 : 116;
+    const float reach = std::clamp(float(y - shoulder) / (mode ? 200.f : 134.f), 0.f, 1.f);
+    const float center = mode ? 49.f - 18.f * reach : 118.f - 19.f * reach;
+    const float radius = mode ? 29.f : 18.f;
+    const float end = mode ? 1.f : SmoothStep((273 - y) / 10.f);
+    return {center, radius, SmoothStep(reach) * end};
+}
+
+// x is measured from the nearest side of the portrait. The smooth outer
+// margin moves the silhouette and feathers into the existing white background.
+inline float ArmWeight(const ArmMaskRow& row, int x) {
+    return row.strength * SmoothStep((row.radius - std::abs(x - row.center)) / (row.radius * .45f));
+}
+
+inline float ArmOffset(int64_t ms, int period, int amplitude, bool right) {
+    return amplitude * std::sin(6.2831853f * float(ms % period) / period + (right ? .69f : 0.f));
+}
+
 struct BreathAxis {
     float spread;
     float lift;
