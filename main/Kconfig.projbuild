@@ -747,18 +747,6 @@ config ANIME_RIGHT_ARM_PERIOD_MS
     range 4000 12000
     default 6500
 
-config ANIME_HEAD_TILT
-    int "Head tilt (tenths of a degree)"
-    depends on BOARD_TYPE_ANIME_COMPANION_S3
-    range 0 20
-    default 15
-
-config ANIME_HEAD_PERIOD_MS
-    int "Head cycle (ms)"
-    depends on BOARD_TYPE_ANIME_COMPANION_S3
-    range 7000 9000
-    default 8200
-
 config ANIME_TARGET_FPS
     int "Target idle poses per second"
     depends on BOARD_TYPE_ANIME_COMPANION_S3

@@ -13,10 +13,10 @@ class AvatarAssetsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             subprocess.run([sys.executable, str(ROOT / "scripts/pack_anime_assets.py"),
-                            str(ROOT / "character"), str(out)], check=True)
+                            str(ROOT / "character" / "aura"), str(out)], check=True)
             expected = bytearray()
             for mode in ("full_body", "half_body"):
-                directory = ROOT / "character" / mode
+                directory = ROOT / "character" / "aura" / mode
                 manifest = json.loads((directory / "manifest.json").read_text())
                 expected.extend((directory / manifest["base_file"]).read_bytes())
                 for group in ("eyes", "mouth"):

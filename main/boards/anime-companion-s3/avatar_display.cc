@@ -8,6 +8,7 @@
 
 #include "application.h"
 #include "companion_index.h"
+#include "lvgl_font.h"
 
 extern "C" const uint16_t companion_pixels[] asm("_binary_companion_pixels_bin_start");
 
@@ -95,12 +96,7 @@ void AvatarDisplay::SetupUI() {
 #endif
     frame_ = static_cast<uint16_t*>(
         heap_caps_aligned_alloc(64, kFrameBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-    source_ = static_cast<uint16_t*>(
-        heap_caps_aligned_alloc(64, kFrameBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-    if (!frame_ || !source_) {
-        heap_caps_free(frame_);
-        heap_caps_free(source_);
-        frame_ = source_ = nullptr;
+    if (!frame_) {
         ESP_LOGE("Avatar", "No PSRAM framebuffer; retaining setup screen");
         return;
     }
@@ -119,6 +115,7 @@ void AvatarDisplay::SetupUI() {
     LoadMode(requested_mode_.load(), esp_timer_get_time() / 1000);
     lv_image_set_src(image_, &descriptor_);
     lv_obj_set_pos(image_, 0, 0);
+    CreateOverlays();
     lv_timer_create(
         [](lv_timer_t* timer) {
             static_cast<AvatarDisplay*>(lv_timer_get_user_data(timer))->Tick();
@@ -136,25 +133,28 @@ bool AvatarDisplay::Invalidate(const avatar::Rect& rect) {
 }
 
 void AvatarDisplay::Patch(const avatar::Rect& rect, int offset) {
-    avatar::Composite(source_, rect, Pixels(offset));
+    avatar::Composite(frame_, rect, Pixels(offset));
+    Invalidate(rect);
 }
 
 void AvatarDisplay::LoadMode(int selected, int64_t ms) {
     const auto& mode = avatar::modes[selected];
     std::memcpy(frame_, Pixels(mode.base), kFrameBytes);
-    std::memcpy(source_, frame_, kFrameBytes);
+
     current_mode_ = selected;
     eye_ = mouth_ = 0;
     blink_at_ = NextBlink(ms, mode);
-    mouth_at_ = due_ms_ = last_pose_ms_ = ms;
-    motion_ms_ = pose_start_us_ = stats_start_us_ = 0;
+    mouth_at_ = due_ms_ = origin_ms_ = ms;
+    region_ = 0;
+    pose_start_us_ = stats_start_us_ = 0;
     pose_ = {};
     completed_ = transfer_bytes_ = frame_cost_ms_ = 0;
 }
 
-bool AvatarDisplay::Render(avatar::Rect area) {
-    auto dirty = avatar::RenderRegion(source_, frame_, current_mode_, pose_, area);
-    return dirty.w > 0 && dirty.h > 0 && Invalidate(dirty);
+int AvatarDisplay::Render(avatar::Rect area) {
+    auto dirty = avatar::RenderRegion(Pixels(avatar::modes[current_mode_].base), frame_,
+                                      current_mode_, pose_, area);
+    return dirty.w > 0 && dirty.h > 0 && Invalidate(dirty) ? dirty.w * dirty.h : 0;
 }
 
 void AvatarDisplay::RefreshComplete() {
@@ -172,6 +172,101 @@ void AvatarDisplay::RefreshComplete() {
                  transfer_bytes_ * 1e6 / window, frame_cost_ms_);
         stats_start_us_ = now;
         completed_ = transfer_bytes_ = 0;
+    }
+}
+
+void AvatarDisplay::SetTextMode(bool enabled) {
+    std::lock_guard lock(captions_mutex_);
+    captions_.Enable(enabled);
+}
+
+void AvatarDisplay::SetConversationText(const char* role, const char* content) {
+    if (!frame_) {
+        LcdDisplay::SetChatMessage(role, content);
+        return;
+    }
+    const bool answer = std::strcmp(role, "assistant") == 0;
+    if (answer && Application::GetInstance().IsSpeechAborted())
+        return;
+    std::lock_guard lock(captions_mutex_);
+    captions_.Submit(answer, content, esp_timer_get_time() / 1000);
+}
+void AvatarDisplay::CancelConversationText() {
+    std::lock_guard lock(captions_mutex_);
+    captions_.Clear();
+}
+
+void AvatarDisplay::CreateOverlays() {
+    dot_ = lv_obj_create(avatar_screen_);
+    lv_obj_remove_style_all(dot_);
+    lv_obj_set_size(dot_, 7, 7);
+    lv_obj_align(dot_, LV_ALIGN_TOP_RIGHT, -10, 10);
+    lv_obj_set_style_radius(dot_, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(dot_, lv_color_hex(0x22ff66), 0);
+    lv_obj_set_style_bg_opa(dot_, LV_OPA_COVER, 0);
+    lv_obj_add_flag(dot_, LV_OBJ_FLAG_HIDDEN);
+
+    caption_bar_ = lv_obj_create(avatar_screen_);
+    lv_obj_remove_style_all(caption_bar_);
+    lv_obj_remove_flag(caption_bar_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(caption_bar_, 320, 58);
+    lv_obj_align(caption_bar_, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_bg_color(caption_bar_, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(caption_bar_, LV_OPA_80, 0);
+    lv_obj_add_flag(caption_bar_, LV_OBJ_FLAG_HIDDEN);
+    caption_label_ = lv_label_create(caption_bar_);
+    lv_label_set_text(caption_label_, "");
+    lv_obj_set_width(caption_label_, LV_SIZE_CONTENT);
+    lv_obj_align(caption_label_, LV_ALIGN_LEFT_MID, 0, 0);
+}
+
+void AvatarDisplay::UpdateOverlays(int64_t ms, bool listening, bool active) {
+    if (listening_ != listening) {
+        listening_ = listening;
+        if (listening)
+            lv_obj_remove_flag(dot_, LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(dot_, LV_OBJ_FLAG_HIDDEN);
+    }
+    int alpha;
+    int64_t elapsed;
+    bool visible, font_changed = false;
+    auto font = GetTheme() ? GetTheme()->GetTextFont() : nullptr;
+    if (font && font != caption_font_) {
+        lv_obj_set_style_text_font(caption_label_, font->font(), 0);
+        caption_font_ = font;
+        font_changed = true;
+    }
+    {
+        std::lock_guard lock(captions_mutex_);
+        captions_.Tick(ms, active);
+        visible = !captions_.text.empty();
+        if (caption_revision_ != captions_.revision || font_changed) {
+            caption_revision_ = captions_.revision;
+            if (!visible) {
+                lv_obj_add_flag(caption_bar_, LV_OBJ_FLAG_HIDDEN);
+                return;
+            }
+            lv_obj_remove_flag(caption_bar_, LV_OBJ_FLAG_HIDDEN);
+            lv_label_set_text(caption_label_, captions_.text.c_str());
+            lv_obj_set_style_text_color(caption_label_,
+                                        lv_color_hex(captions_.assistant ? 0xffffff : 0xa8c7fa), 0);
+            lv_obj_update_layout(caption_label_);
+            caption_width_ = lv_obj_get_width(caption_label_);
+        }
+        if (!visible)
+            return;
+        alpha = captions_.Opacity(ms);
+        elapsed = ms - captions_.shown;
+    }
+    if (alpha != opacity_) {
+        lv_obj_set_style_opa(caption_bar_, alpha, 0);
+        opacity_ = alpha;
+    }
+    const int x = 8 + aura::ScrollX(caption_width_, elapsed);
+    if (x != caption_x_) {
+        lv_obj_set_x(caption_label_, x);
+        caption_x_ = x;
     }
 }
 
@@ -213,7 +308,7 @@ void AvatarDisplay::Tick() {
             blink_at_ = NextBlink(ms, mode);
     }
     const bool eye_changed = eye != eye_;
-    bool mouth_changed = false;
+
     if (eye_changed) {
         Patch(mode.eyes, mode.eye_offsets[eye]);
         eye_ = eye;
@@ -226,7 +321,6 @@ void AvatarDisplay::Tick() {
                 ? avatar::MouthFrame(app.GetAudioService().GetPlaybackRms(now_us), mode.thresholds)
                 : 0;
         if (mouth != mouth_) {
-            mouth_changed = true;
             Patch(mode.mouth, mode.mouth_offsets[mouth]);
             mouth_ = mouth;
         }
@@ -236,30 +330,40 @@ void AvatarDisplay::Tick() {
         stats_start_us_ = now_us;
         completed_ = transfer_bytes_ = 0;
     }
-    if (eye_changed || mouth_changed) {
-        if (eye_changed)
-            Render(avatar::FaceBounds(mode.eyes));
-        if (mouth_changed)
-            Render(avatar::FaceBounds(mode.mouth));
+    const bool listening = aura::Listening(
+        state == kDeviceStateListening,
+        state == kDeviceStateListening && app.GetAudioService().IsAudioProcessorRunning(),
+        app.IsListeningStartPending());
+    UpdateOverlays(ms, listening, speaking || !app.GetAudioService().IsPlaybackIdle());
+    if (ms < due_ms_ || pose_start_us_)
         return;
+    if (!region_) {
+        const avatar::MotionConfig cfg{
+            CONFIG_ANIME_BREATH_PERIOD_MS, CONFIG_ANIME_BREATH_AMPLITUDE_PX,
+            CONFIG_ANIME_ARM_PERIOD_MS, CONFIG_ANIME_RIGHT_ARM_PERIOD_MS,
+            selected ? CONFIG_ANIME_ARM_HALF_PX : CONFIG_ANIME_ARM_FULL_PX};
+        pose_ = avatar::MakePose(ms - origin_ms_, cfg);
+        sweep_start_us_ = now_us;
     }
-    if (ms < due_ms_ || pose_start_us_ || ms + frame_cost_ms_ >= blink_at_ ||
-        (speaking && frame_cost_ms_ >= mode.speech_ms))
-        return;
-    const int interval = std::max(1000 / CONFIG_ANIME_TARGET_FPS, frame_cost_ms_ + 5);
-    motion_ms_ += std::clamp<int64_t>(ms - last_pose_ms_, 0, interval);
-    last_pose_ms_ = ms;
-    due_ms_ = ms + interval;
-    const avatar::MotionConfig cfg{CONFIG_ANIME_BREATH_PERIOD_MS,
-                                   CONFIG_ANIME_BREATH_AMPLITUDE_PX,
-                                   CONFIG_ANIME_ARM_PERIOD_MS,
-                                   CONFIG_ANIME_RIGHT_ARM_PERIOD_MS,
-                                   selected ? CONFIG_ANIME_ARM_HALF_PX : CONFIG_ANIME_ARM_FULL_PX,
-                                   CONFIG_ANIME_HEAD_PERIOD_MS,
-                                   CONFIG_ANIME_HEAD_TILT};
-    pose_ = avatar::MakePose(motion_ms_, selected, cfg);
-    bool changed = false;
-    avatar::PoseRegions(selected, [&](avatar::Rect area) { changed |= Render(area); });
-    if (changed)
-        pose_start_us_ = now_us;
+    aura::BodyBudget budget(CONFIG_ANIME_SPI_MHZ, speaking);
+    int changed = 0;
+    while (budget.Available() && changed < 8) {
+        const auto band = avatar::BodyRegion(selected, region_);
+        if (!band.h) {
+            region_ = 0;
+            due_ms_ = sweep_start_us_ / 1000 + 1000 / CONFIG_ANIME_TARGET_FPS;
+            if (changed)
+                pose_start_us_ = sweep_start_us_;
+            else {
+                pose_start_us_ = sweep_start_us_;
+                RefreshComplete();
+            }
+            break;
+        }
+        const auto before = esp_timer_get_time();
+        const int pixels = Render(band);
+        changed += pixels != 0;
+        budget.Charge(pixels, esp_timer_get_time() - before);
+        ++region_;
+    }
 }

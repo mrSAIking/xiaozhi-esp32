@@ -72,6 +72,7 @@ public:
 
     DeviceState GetDeviceState() const { return state_machine_.GetState(); }
 #if CONFIG_AUDIO_PLAYBACK_METER
+    bool IsListeningStartPending() const { return pending_listening_start_.load(); }
     bool IsSpeechAborted() const { return aborted_.load(); }
 #endif
     bool IsVoiceDetected() const { return audio_service_.IsVoiceDetected(); }
@@ -160,7 +161,7 @@ private:
     std::atomic<bool> aborted_{false};
     bool assets_version_checked_ = false;
     bool play_popup_on_listening_ = false;  // Flag to play popup sound after state changes to listening
-    bool pending_listening_start_ = false;  // Waiting for playback to drain before starting listening (auto mode)
+    std::atomic<bool> pending_listening_start_{false};  // Waiting for playback to drain before starting listening (auto mode)
     int clock_ticks_ = 0;
     TaskHandle_t activation_task_handle_ = nullptr;
 

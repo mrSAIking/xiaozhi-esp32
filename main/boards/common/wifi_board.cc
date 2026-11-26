@@ -55,10 +55,19 @@ void WifiBoard::StartNetwork() {
 
     // Initialize WiFi manager
     WifiManagerConfig config;
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    config.ssid_prefix = "Project-Aura";
+#else
     config.ssid_prefix = "Xiaozhi";
+#endif
     config.language = Lang::CODE;
     config.advanced_groups = MakeXiaozhiPortalSettings();
 
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    for (auto& group : config.advanced_groups) {
+        if (group.id == "ota") group.title = "Project Aura · OTA";
+    }
+#endif
     // Set a DHCP hostname so the router shows a friendly name instead of "espressif".
     // Uses the same "<prefix>-<last 2 MAC bytes>" scheme as the config AP SSID.
     uint8_t mac[6];

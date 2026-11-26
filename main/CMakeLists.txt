@@ -1245,7 +1245,7 @@ idf_component_register(SRCS ${SOURCES}
                     )
 
 if(CONFIG_BOARD_TYPE_ANIME_COMPANION_S3 AND NOT CMAKE_BUILD_EARLY_EXPANSION)
-    set(avatar_root "${PROJECT_DIR}/character")
+    set(avatar_root "${PROJECT_DIR}/character/aura")
     set(avatar_out "${CMAKE_CURRENT_BINARY_DIR}/avatar")
     set(packer "${PROJECT_DIR}/scripts/pack_anime_assets.py")
     file(GLOB_RECURSE avatar_inputs CONFIGURE_DEPENDS

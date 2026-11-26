@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image
 
 def generate(exe, root, out, mode, name):
-    bank = root / "character" / name
+    bank = root / "character" / "aura" / name
     manifest = json.loads((bank / "manifest.json").read_text())
     coords = []
     for group, state in (("eyes", "open"), ("mouth", "closed")):

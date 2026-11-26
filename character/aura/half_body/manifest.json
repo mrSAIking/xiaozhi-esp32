@@ -1,0 +1,149 @@
+{
+  "canvas": [
+    320,
+    480
+  ],
+  "pixel_format": "RGB565",
+  "byte_order": "little",
+  "layout": "row-major, top-left origin, tightly packed",
+  "base_file": "base.rgb565",
+  "master_view_xywh": [
+    340,
+    0,
+    520,
+    780
+  ],
+  "features_xywh": {
+    "left_eye": [
+      116,
+      114,
+      34,
+      22
+    ],
+    "right_eye": [
+      172,
+      114,
+      34,
+      22
+    ],
+    "mouth": [
+      146,
+      161,
+      29,
+      15
+    ]
+  },
+  "frames": {
+    "eyes": {
+      "open": {
+        "file": "eyes/eyes_open.rgb565",
+        "x": 115,
+        "y": 112,
+        "width": 92,
+        "height": 27
+      },
+      "half": {
+        "file": "eyes/eyes_half.rgb565",
+        "x": 115,
+        "y": 112,
+        "width": 92,
+        "height": 27
+      },
+      "closed": {
+        "file": "eyes/eyes_closed.rgb565",
+        "x": 115,
+        "y": 112,
+        "width": 92,
+        "height": 27
+      }
+    },
+    "mouth": {
+      "closed": {
+        "file": "mouth/mouth_closed.rgb565",
+        "x": 139,
+        "y": 155,
+        "width": 42,
+        "height": 30
+      },
+      "small": {
+        "file": "mouth/mouth_small.rgb565",
+        "x": 139,
+        "y": 155,
+        "width": 42,
+        "height": 30
+      },
+      "medium": {
+        "file": "mouth/mouth_medium.rgb565",
+        "x": 139,
+        "y": 155,
+        "width": 42,
+        "height": 30
+      },
+      "wide": {
+        "file": "mouth/mouth_wide.rgb565",
+        "x": 139,
+        "y": 155,
+        "width": 42,
+        "height": 30
+      },
+      "round": {
+        "file": "mouth/mouth_round.rgb565",
+        "x": 139,
+        "y": 155,
+        "width": 42,
+        "height": 30
+      }
+    }
+  },
+  "production_bytes": 334704,
+  "breathing_region_xywh": [
+    35,
+    226,
+    253,
+    248
+  ],
+  "blink": {
+    "sequence": [
+      "open",
+      "half",
+      "closed",
+      "half",
+      "open"
+    ],
+    "hold_ms": [
+      0,
+      50,
+      60,
+      60,
+      0
+    ],
+    "total_ms": 170,
+    "interval_ms": [
+      2000,
+      6000
+    ]
+  },
+  "speech": {
+    "input": "decoded PCM currently playing on the speaker",
+    "update_ms": 50,
+    "measure": "RMS divided by full-scale sample amplitude",
+    "thresholds": [
+      0.015,
+      0.065,
+      0.15
+    ],
+    "states_by_increasing_level": [
+      "closed",
+      "small",
+      "medium",
+      "wide"
+    ],
+    "optional_viseme": "round",
+    "rest_states": [
+      "idle",
+      "listening",
+      "thinking"
+    ],
+    "on_playback_end": "immediately restore closed"
+  }
+}

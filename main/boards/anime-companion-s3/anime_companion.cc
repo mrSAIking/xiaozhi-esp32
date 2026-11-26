@@ -74,6 +74,14 @@ public:
                             : ESP_ERR_NO_MEM);
 
         McpServer::GetInstance().AddTool(
+            "self.avatar.set_text_mode",
+            "Enable for Show me text mode, Enable text mode or Show subtitles. Disable for Turn off text mode, Disable text mode or Hide subtitles.",
+            PropertyList({Property("enabled", kPropertyTypeBoolean)}),
+            [this](const PropertyList& props) -> ToolResult {
+                display_.SetTextMode(props["enabled"].value<bool>());
+                return true;
+            });
+        McpServer::GetInstance().AddTool(
             "self.avatar.set_mode", "Display the character in full_body or half_body mode.",
             PropertyList({Property("mode", kPropertyTypeString).SetMaxLength(16)}),
             [this](const PropertyList& props) -> ToolResult {

@@ -4,26 +4,21 @@
 
 namespace avatar {
 struct MotionConfig {
-    int breath_ms, breath_px, left_ms, right_ms, arm_px, head_ms, tilt_tenths;
+    int breath_ms, breath_px, left_ms, right_ms, arm_px;
 };
 struct Pose {
-    float breath{}, arm[2]{}, sine{}, cosine_delta{}, shift{};
+    float breath{}, arm[2]{};
 };
-inline Pose MakePose(int64_t ms, int mode, MotionConfig c) {
+inline Pose MakePose(int64_t ms, MotionConfig c) {
     constexpr float tau = 6.283185307f;
     const auto phase = [=](int period) { return tau * float(ms % period) / period; };
     const float t = float(ms % c.breath_ms) / c.breath_ms;
     const float breath =
         .5f * (1.f - std::cos((tau * .5f) * (t < .42f ? t / .42f : (1.f - t) / .58f)));
-    const float h = phase(c.head_ms) + .12f * std::sin(phase(15671));
-    const float angle = .00174532925f * c.tilt_tenths * std::sin(h);
     Pose p;
     p.breath = breath * c.breath_px;
     p.arm[0] = c.arm_px * std::sin(phase(c.left_ms) + .12f * breath);
     p.arm[1] = c.arm_px * std::sin(phase(c.right_ms) + .69f - .12f * breath);
-    p.sine = std::sin(angle);
-    p.cosine_delta = std::cos(angle) - 1.f;
-    p.shift = c.tilt_tenths ? (mode ? 1.6f : 1.f) * std::sin(h + .23f) : 0.f;
     return p;
 }
 struct Delta {
@@ -35,14 +30,16 @@ inline Delta Offset(const Pose& p, int mode, int x, int y) {
     const auto axis = BreathX(float(x - torso.x) / (torso.w - 1));
     const int side = x >= 160;
     const float arm = ArmWeight(ArmRow(mode, y), side ? 319 - x : x);
-    const float neck = mode ? 193.f : 73.f;
-    const float rx = x - 160.f, ry = y - neck;
-    // Rigid through the face, taper through the long braids and collar.
-    const float head = SmoothStep((neck + (mode ? 83.f : 32.f) - y) / (mode ? 83.f : 32.f)) *
-                       SmoothStep(((mode ? 132.f : 52.f) - std::abs(rx)) / (mode ? 24.f : 12.f));
-    const float dx = axis.spread * weight + p.arm[side] * arm +
-                     head * (p.cosine_delta * rx + p.sine * ry - p.shift * (1.f + p.cosine_delta));
-    const float dy = axis.lift * weight + head * (-p.sine * (rx - p.shift) + p.cosine_delta * ry);
+    // Hold the braids where they overlap the moving bodice. Fade the guard
+    // through neighboring fabric so it cannot introduce a hard seam.
+    const float braid_x = mode ? 113.f - 35.f * SmoothStep((y - 190.f) / 142.f)
+                               : 141.f - 14.f * SmoothStep((y - 68.f) / 62.f);
+    const float dist = std::abs((side ? 319 - x : x) - braid_x);
+    const float hair = 1.f - SmoothStep((dist - (mode ? 9.f : 4.f)) / (mode ? 10.f : 5.f));
+    const float guard =
+        1.f - hair * SmoothStep(((mode ? 389.f : 145.f) - y) / (mode ? 24.f : 12.f));
+    const float dx = guard * (axis.spread * weight + p.arm[side] * arm);
+    const float dy = guard * axis.lift * weight;
     return {int(std::round(dx * 256.f)), int(std::round(dy * 256.f))};
 }
 
@@ -69,10 +66,6 @@ inline uint16_t SampleAt(const uint16_t* src, int qx, int qy) {
 inline void Composite(uint16_t* src, Rect r, const uint16_t* patch) {
     for (int y = 0; y < r.h; ++y)
         std::memcpy(src + (r.y + y) * 320 + r.x, patch + y * r.w, r.w * sizeof(*src));
-}
-inline Rect FaceBounds(Rect r) {
-    // Greater than the maximum inverse displacement over either face at 2 degrees.
-    return {r.x - 10, r.y - 10, r.w + 20, r.h + 20};
 }
 // Fixed 8-pixel lattice in canvas coordinates, including when rendering only a facial patch.
 inline Rect RenderRegion(const uint16_t* src, uint16_t* frame, int mode, const Pose& p, Rect r) {
@@ -109,19 +102,27 @@ inline Rect RenderRegion(const uint16_t* src, uint16_t* frame, int mode, const P
     }
     return {left, top, right - left + 1, bottom - top + 1};
 }
-// Up to 30 invalidations per pose. Separate the forearms below the torso
-// to avoid sending the stationary skirt or the empty gap between hands.
+// Fixed world-space strips keep a complete pose coherent across short LVGL callbacks.
+inline Rect BodyRegion(int mode, int index) {
+    const int first = mode ? 208 : 72, split = mode ? 344 : 184, end = mode ? 480 : 280;
+    const int rows = 8, upper = (split - first) / rows;
+    if (index < upper) {
+        const int x = mode ? 0 : 80;
+        return {x, first + index * rows, 320 - 2 * x, rows};
+    }
+    const int part = index - upper, y = split + part / 2 * rows;
+    if (y >= end)
+        return {};
+    const int x = mode ? 0 : 72, w = mode ? 88 : 56;
+    return {part % 2 ? 320 - x - w : x, y, w, std::min(rows, end - y)};
+}
 template <class Visitor>
 void PoseRegions(int mode, Visitor visit) {
-    const int split = mode ? 344 : 184, end = mode ? 480 : 280;
-    for (int y = 0; y < split; y += 24) {
-        const int x = mode ? (y < 192 ? 32 : 0) : (y < 72 ? 104 : 80);
-        visit(Rect{x, y, 320 - 2 * x, std::min(24, split - y)});
-    }
-    for (int y = split; y < end; y += 24) {
-        const int x = mode ? 0 : 72, w = mode ? 88 : 56, h = std::min(24, end - y);
-        visit(Rect{x, y, w, h});
-        visit(Rect{320 - x - w, y, w, h});
+    for (int i = 0;; ++i) {
+        auto r = BodyRegion(mode, i);
+        if (!r.h)
+            return;
+        visit(r);
     }
 }
 }  // namespace avatar

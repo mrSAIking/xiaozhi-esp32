@@ -31,11 +31,11 @@ int main(int argc, char** argv) {
         const int eye = EyeFrame(t % 3200, holds);
         const char* eye_name = std::array{"open", "half", "closed"}[eye];
         const char* mouth_name = t % 3000 < 800 && i % 8 < 4 ? "medium" : "closed";
-        Composite(src.data(), eyes,
+        Composite(frame.data(), eyes,
                   Read(dir + "/eyes/eyes_" + eye_name + ".rgb565", eyes.w * eyes.h).data());
-        Composite(src.data(), mouth,
+        Composite(frame.data(), mouth,
                   Read(dir + "/mouth/mouth_" + mouth_name + ".rgb565", mouth.w * mouth.h).data());
-        auto pose = MakePose(t, mode, {4800, 3, 5500, 6500, mode ? 3 : 2, 8200, 15});
+        auto pose = MakePose(t, {4800, 3, 5500, 6500, mode ? 3 : 2});
         PoseRegions(mode, [&](Rect r) {
             auto dirty = RenderRegion(src.data(), frame.data(), mode, pose, r);
             if (dirty.w > 0)
@@ -44,6 +44,11 @@ int main(int argc, char** argv) {
         if (i % 50 == 0) {
             auto reference = src;
             RenderRegion(src.data(), reference.data(), mode, pose, {0, 0, 320, 480});
+            Composite(reference.data(), eyes,
+                      Read(dir + "/eyes/eyes_" + eye_name + ".rgb565", eyes.w * eyes.h).data());
+            Composite(
+                reference.data(), mouth,
+                Read(dir + "/mouth/mouth_" + mouth_name + ".rgb565", mouth.w * mouth.h).data());
             if (reference != frame)
                 throw std::runtime_error("Dirty region coverage mismatch");
         }

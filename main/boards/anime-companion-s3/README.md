@@ -1,4 +1,4 @@
-# Anime Companion S3
+# Project Aura
 
 Xiaozhi 2.6.0 for ESP32-S3 N16R8, 16 MiB flash and 8 MiB octal PSRAM. Build the `anime-companion-s3` variant with ESP-IDF release/v6.1. The dedicated Anime Companion S3 Actions workflow builds the merged image on pushes to `anime-companion`.
 
@@ -11,11 +11,15 @@ Xiaozhi 2.6.0 for ESP32-S3 N16R8, 16 MiB flash and 8 MiB octal PSRAM. Build the 
 
 The write-only display uses RGB666 on the wire. `CONFIG_ANIME_SPI_MHZ` defaults to 10. `CONFIG_ANIME_LED_BRIGHTNESS` defaults to 12 out of 255. The BOOT button uses the breadboard firmware's provisioning and chat behavior.
 
-Xiaozhi owns networking, activation, speech processing and protocols. The setup screen and avatar share one LVGL flush path. Each mode starts with a pair of 320 × 480 RGB565 buffers in PSRAM for compositing and presentation. The 10,240-byte LVGL strip is also in PSRAM. One 15,360-byte internal DMA strip is reused after its SPI completion interrupt. The immutable bases and patches are linked into the OTA application so an update replaces code and matching art together.
+Xiaozhi owns networking, activation, speech processing and protocols. The setup screen and avatar share one LVGL flush path. Each mode starts with one 320 × 480 RGB565 presentation buffer in PSRAM. The 10,240-byte LVGL strip is also in PSRAM. One 15,360-byte internal DMA strip is reused after its SPI completion interrupt. The immutable bases and patches are linked into the OTA application so an update replaces code and matching art together.
 
 Double-click BOOT to switch between full and half body offline. During startup, provisioning or activation, a double-click shows the selection for five seconds before returning to the setup screen. A single click still performs the usual Xiaozhi action. The `self.avatar.set_mode` MCP tool accepts `{"mode":"half_body"}` or `{"mode":"full_body"}`. Both controls save the mode in NVS, and the device restores it on the next boot. A fresh installation starts in full-body mode.
 
-Breathing defaults to 3 pixels over 4800 ms with a 42% inhale. Left and right arm periods default to 5500 and 6500 ms. Set either mode's arm amplitude independently. Head tilt defaults to 1.5 degrees around the neck with an 8200 ms cycle and slow phase variation. The production mesh samples source pixels bilinearly with eight fractional bits. Eye and mouth patches are composed into the source before the warp. The target is 25 poses/s, configurable up to 30. A costly idle pose yields to blinks and speech. Every five seconds of active animation the serial log reports completed idle poses/s, RGB666 payload bytes/s and recent frame cost.
+Breathing defaults to 3 pixels over 4800 ms with a 42% inhale. Left and right arm periods default to 5500 and 6500 ms. Set either mode's arm amplitude independently. The head stays still. Eye and mouth patches update immediately in their manifest rectangles. Body motion samples the immutable black-background artwork in short strips with one timestamp per sweep. The scheduler reserves body work even while the mouth changes. The serial console reports completed body poses and total RGB666 payload including overlays.
+
+The board advertises `Project-Aura-XXXX` and uses that name for station DHCP. The Wi-Fi component appends the last two station MAC bytes to the supplied prefix. The provisioning portal identifies Project Aura in its OTA settings. Backend identity and provisioning credentials use the existing Xiaozhi flow.
+
+The green dot indicates listening with voice processing enabled and no pending playback drain. The optional 58-pixel subtitle overlay starts off after every boot. `self.avatar.set_text_mode` takes a boolean `enabled`. STT questions and TTS sentence events use the active theme font and dynamic glyph cache. Captions fade for 240 ms, and long lines pan at 35 px/s. Sentence timing follows server events and the final playback drain. Original white artwork and banks remain in `character`; production banks live in `character/aura`.
 
 Use the 10 MHz artifact first. The 20, 27 and 40 MHz artifacts use the same GPIO and rendering configuration and request different SPI clocks. Actual bus frequency depends on the peripheral divider. Check colors, noise, reset stability, audio and frame timing on each physical panel. The desktop previews use the same C++ mesh and sampler. Compile `scripts/anime_preview.cc` with a desktop C++17 compiler and the board include directory, then run `python scripts/anime_preview.py <executable> <output-directory>`.
 

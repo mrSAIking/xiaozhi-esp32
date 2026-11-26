@@ -687,7 +687,7 @@ void Application::InitializeProtocol() {
                     Schedule([display, message = std::string(text->valuestring),
                               glyphs = std::move(glyphs), bpp]() {
                         display->AddTextGlyphs(glyphs, bpp);
-                        display->SetChatMessage("assistant", message.c_str());
+                        display->SetConversationText("assistant", message.c_str());
                     });
                 }
             }
@@ -703,7 +703,7 @@ void Application::InitializeProtocol() {
                 Schedule([display, message = std::string(text->valuestring),
                           glyphs = std::move(glyphs), bpp]() {
                     display->AddTextGlyphs(glyphs, bpp);
-                    display->SetChatMessage("user", message.c_str());
+                    display->SetConversationText("user", message.c_str());
                 });
             }
         } else if (strcmp(type->valuestring, "llm") == 0) {
@@ -1280,6 +1280,7 @@ void Application::Schedule(std::function<void()>&& callback) {
 
 void Application::AbortSpeaking(AbortReason reason) {
     ESP_LOGI(TAG, "Abort speaking");
+    Board::GetInstance().GetDisplay()->CancelConversationText();
     aborted_ = true;
     if (protocol_) {
         protocol_->SendAbortSpeaking(reason);

@@ -26,12 +26,15 @@ jobs:
           source "$IDF_PATH/export.sh"
           python -m pip install Pillow numpy
           python character/scripts/validate_assets.py
+          python character/scripts/aura_assets.py --check
           python -m unittest discover -s scripts/tests -v
           g++ -std=c++17 -pthread -Imain/audio -Imain/boards/anime-companion-s3 \
             scripts/tests/anime_animation_test.cc -o /tmp/test-avatar
           /tmp/test-avatar
           g++ -O2 -std=c++17 -Imain/boards/anime-companion-s3 scripts/tests/anime_pose_test.cc -o /tmp/test-pose
           /tmp/test-pose
+          g++ -O2 -std=c++17 -Imain/boards/anime-companion-s3 scripts/tests/aura_ui_test.cc -o /tmp/test-ui
+          /tmp/test-ui
       - name: Render and verify desktop previews
         if: matrix.spi_mhz == 10
         run: |
