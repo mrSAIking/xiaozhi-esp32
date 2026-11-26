@@ -1208,7 +1208,9 @@ endif()
 # charging from a USB port. The board is ESP32-S3 only, so require the driver
 # on that target and keep other target builds unchanged.
 if(IDF_TARGET STREQUAL "esp32s3")
-    list(APPEND MAIN_PRIV_REQUIRES_EXTRA esp_driver_usb_serial_jtag)
+    # The minimal build must discover espcoredump before reading board Kconfig.
+    # Only the anime board enables the UART dump destination by default.
+    list(APPEND MAIN_PRIV_REQUIRES_EXTRA esp_driver_usb_serial_jtag espcoredump)
 endif()
 idf_component_register(SRCS ${SOURCES}
                     EMBED_FILES ${LANG_SOUNDS} ${COMMON_SOUNDS}
