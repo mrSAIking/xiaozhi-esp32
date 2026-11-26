@@ -30,17 +30,28 @@ def make_mask():
     alpha[edge] = np.rint(255*np.clip((observed*dark).sum(1)/np.maximum((dark*dark).sum(1), 1), 0, 1))
     # Resolve enclosed white gaps between wisps. Around the head the local
     # foreground is dark hair; recover its coverage against the white paper.
-    hair = rgb[:335]
-    near_white = ((hair.min(2)>218) & (np.ptp(hair,axis=2)<20)).astype(np.uint8)
-    fringe = cv2.dilate(near_white, np.ones((13,13), np.uint8)).astype(bool)
-    yy, xx = np.indices(fringe.shape)
-    fringe &= (xx<490) | (xx>711) | (yy<140)
-    dark_core = hair.min(2)<108
+    # Trace the inner limit of the background-facing hair fringe from crown
+    # to shoulder in master coordinates. The edge bends inward below the
+    # ears, then outward again along each braid.
+    hair = rgb[:383]
+    yy, xx = np.indices(hair.shape[:2])
+    rows = [0, 95, 170, 235, 275, 303, 330, 348, 365, 375, 382]
+    left = np.interp(yy, rows, [600, 547, 521, 519, 518, 515, 510, 507, 506, 488, 451])
+    right = np.interp(yy, rows, [600, 650, 676, 689, 690, 691, 695, 695, 700, 718, 767])
+    near_paper = ((hair.min(2) > 215) & (np.ptp(hair, axis=2) < 25)).astype(np.uint8)
+    fringe = cv2.dilate(near_paper, np.ones((15, 15), np.uint8)).astype(bool)
+    # Two small openings also sit between the braids and the raised collar.
+    collar_gaps = (((xx-542)/6)**2 + ((yy-342)/5)**2 < 1) | (
+        ((xx-666)/5)**2 + ((yy-342)/5)**2 < 1)
+    fringe &= (yy < 95) | (xx < left) | (xx > right) | collar_gaps
+    dark_core = hair.min(2) < 108
     ix = distance_transform_edt(~dark_core, return_distances=False, return_indices=True)
-    color = 255.0-hair[tuple(ix[:,fringe])].astype(float)
-    obs = 255.0-hair[fringe].astype(float)
-    cov = np.clip((obs*color).sum(1)/np.maximum((color*color).sum(1),1),0,1)
-    alpha[:335][fringe] = np.minimum(alpha[:335][fringe], np.rint(255*cov).astype(np.uint8))
+    color = 255.0 - hair[tuple(ix[:, fringe])].astype(float)
+    obs = 255.0 - hair[fringe].astype(float)
+    cov = np.clip((obs * color).sum(1) / np.maximum((color * color).sum(1), 1), 0, 1)
+    # The paper has a faint grain. Below its noise floor the gap is empty.
+    cov[obs.max(axis=1) <= 14] = 0
+    alpha[:len(hair)][fringe] = np.minimum(alpha[:len(hair)][fringe], np.rint(255*cov).astype(np.uint8))
     Image.fromarray(alpha).save(MASK)
 
 def black_master():
@@ -71,6 +82,11 @@ def banks(check=False):
             base.save(new/"base.png")
         assert np.array_equal(np.asarray(base), np.asarray(Image.open(new/"base.png")))
         assert base.getpixel((0,0)) == (0,0,0)
+        # Sample formerly white openings between strands at panel resolution.
+        # A few low bits can survive Lanczos filtering beside a dark strand.
+        gaps = {"half_body": [(93,171), (228,174), (94,202), (92,209)],
+                "full_body": [(135,66), (136,67), (135,74)]}
+        assert all(max(base.getpixel(point)) < 10 for point in gaps[name]), name + " hair fringe"
         def write(path, data):
             if not check:
                 path.parent.mkdir(exist_ok=True)
