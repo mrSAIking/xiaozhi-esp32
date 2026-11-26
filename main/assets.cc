@@ -289,6 +289,13 @@ bool Assets::LvglStrategy::Apply(Assets* assets, bool refresh_display_theme) {
         return true;
     }
 
+    // CBIN creation and destruction use LVGL's allocator. With LV_OS_NONE,
+    // they must share the recursive display lock with the render task.
+    DisplayLockGuard lock(display);
+    if (!lock) {
+        return false;
+    }
+
     auto& theme_manager = LvglThemeManager::GetInstance();
     auto light_theme = theme_manager.GetTheme("light");
     auto dark_theme = theme_manager.GetTheme("dark");

@@ -35,6 +35,10 @@ jobs:
       - name: Verify merged image and report memory use
         run: |
           source "$IDF_PATH/export.sh"
+          python -m unittest discover -s scripts/tests -p test_assets.py -v
+          test -s build/xiaozhi.elf
+          test -s build/xiaozhi.map
+          sha256sum build/xiaozhi.elf | tee -a "$GITHUB_STEP_SUMMARY"
           python "$IDF_PATH/components/partition_table/gen_esp32part.py" \
             build/partition_table/partition-table.bin /tmp/actual-partitions.csv
           python scripts/check_anime_image.py build /tmp/actual-partitions.csv | tee -a "$GITHUB_STEP_SUMMARY"

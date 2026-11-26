@@ -63,6 +63,7 @@ class AssetsTest(unittest.TestCase):
                 inline int model_loads = 0, model_sets = 0, font_creations = 0;
                 inline int image_creations = 0, ui_calls = 0, theme_refreshes = 0;
                 inline int subtitle_updates = 0, lvgl_initializations = 0;
+                inline unsigned gui_lock_depth = 0;
             ''',
             "platform.h": r'''
                 #pragma once
@@ -171,6 +172,7 @@ class AssetsTest(unittest.TestCase):
                 #include "lvgl.h"
                 inline lv_font_t* cbin_font_create(uint8_t*) {
                     assert(lvgl_ready && "font allocation before LVGL initialization");
+                    assert(gui_lock_depth && "font allocation can race LVGL rendering");
                     ++font_creations;
                     static lv_font_fmt_txt_dsc_t descriptor;
                     return new lv_font_t{nullptr, &descriptor};
@@ -264,7 +266,7 @@ class AssetsTest(unittest.TestCase):
             }
             bool LvglRawImage::IsGif() const { return false; }
             LvglCBinImage::LvglCBinImage(void*) {
-                assert(lvgl_ready); ++image_creations;
+                assert(lvgl_ready && gui_lock_depth); ++image_creations;
             }
             LvglCBinImage::~LvglCBinImage() = default;
 
@@ -281,8 +283,8 @@ class AssetsTest(unittest.TestCase):
                 void SetTheme(Theme*) override { ++theme_refreshes; }
                 void SetHideSubtitle(bool) override { ++subtitle_updates; }
             protected:
-                bool Lock(int) override { return true; }
-                void Unlock() override {}
+                bool Lock(int) override { ++gui_lock_depth; return true; }
+                void Unlock() override { assert(gui_lock_depth); --gui_lock_depth; }
             };
 
             int main(int argc, char** argv) {
@@ -304,6 +306,7 @@ class AssetsTest(unittest.TestCase):
                 auto& assets = Assets::GetInstance();
                 assert(assets.partition_valid());
                 bool applied = assets.Apply(mode != "lcd-no-refresh");
+                assert(gui_lock_depth == 0);
                 std::cout << "{\"applied\":" << applied
                           << ",\"model_loads\":" << model_loads
                           << ",\"model_sets\":" << model_sets

@@ -434,6 +434,10 @@ void McpServer::AddUserOnlyTools() {
                 }
                 http->Close();
 
+                DisplayLockGuard lock(display);
+                if (!lock) {
+                    return std::unexpected("Failed to lock the display for image preview");
+                }
                 auto image = std::make_unique<LvglAllocatedImage>(data.release(), total_read);
                 if (!image->IsValid()) {
                     return std::unexpected("Downloaded image is invalid: " + url);

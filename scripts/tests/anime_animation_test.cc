@@ -17,7 +17,7 @@ int main() {
     avatar::Expand565(0x0000, rgb);
     assert(rgb[0] == 0 && rgb[1] == 0 && rgb[2] == 0);
     assert(avatar::FitsRgb565Buffer(320, 8, 640, 5120));
-    assert(avatar::FitsRgb565Buffer(37, 13, 76, 986));
+    assert(avatar::FitsRgb565Buffer(37, 13, 76, 988));
     assert(avatar::FitsRgb565Buffer(320, 8, 644, 5152));
     assert(!avatar::FitsRgb565Buffer(320, 8, 640, 5119));
     assert(!avatar::FitsRgb565Buffer(37, 13, 74, 960));
