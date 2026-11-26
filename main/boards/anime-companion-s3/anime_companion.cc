@@ -36,6 +36,13 @@ void RainbowTask(void* arg) {
 class AnimeCompanion final : public WifiBoard {
 public:
     AnimeCompanion() {
+#if CONFIG_ANIME_PANEL_SELF_TEST
+        // Sample once after the color test, before installing click handlers.
+        // A long hold after reset selects a one-boot silent provisioning comparison.
+        skip_provisioning_audio_ = gpio_get_level(pins::boot) == 0;
+        if (skip_provisioning_audio_)
+            ESP_LOGI("AnimeBoard", "Silent provisioning comparison selected; release BOOT");
+#endif
         half_body_ = Settings(kAvatarSettings).GetBool(kHalfBodyKey);
         display_.SetHalfBody(half_body_);
         ESP_LOGI("AnimeBoard", "Restored avatar mode: %s", half_body_ ? "half_body" : "full_body");
@@ -111,6 +118,13 @@ private:
         app.Alert(Lang::Strings::WIFI_CONFIG_MODE, hint.c_str(), "gear");
         ESP_LOGI("AnimeBoard",
                  "Provisioning text queued; waiting for display refresh before audio");
+        if (skip_provisioning_audio_) {
+            display_.AfterRefresh([] {
+                ESP_LOGI("AnimeBoard",
+                         "Provisioning refresh complete; prompt audio skipped for comparison");
+            });
+            return;
+        }
         display_.AfterRefresh([] {
             auto& app = Application::GetInstance();
             if (app.GetDeviceState() != kDeviceStateWifiConfiguring)
@@ -149,6 +163,7 @@ private:
     Button boot_{pins::boot};
     AvatarDisplay display_;
     bool half_body_ = false;
+    bool skip_provisioning_audio_ = false;
 };
 
 DECLARE_BOARD(AnimeCompanion);
