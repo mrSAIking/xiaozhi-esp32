@@ -4,12 +4,16 @@
 #include "codecs/no_audio_codec.h"
 #include "config.h"
 #include "mcp_server.h"
+#include "settings.h"
 #include "wifi_board.h"
 
 #include <esp_heap_caps.h>
 #include <led_strip.h>
 
 namespace {
+constexpr char kAvatarSettings[] = "anime_avatar";
+constexpr char kHalfBodyKey[] = "half_body";
+
 void RainbowTask(void* arg) {
     auto strip = static_cast<led_strip_handle_t>(arg);
     constexpr int peak = CONFIG_ANIME_LED_BRIGHTNESS;
@@ -31,6 +35,9 @@ void RainbowTask(void* arg) {
 class AnimeCompanion final : public WifiBoard {
 public:
     AnimeCompanion() {
+        half_body_ = Settings(kAvatarSettings).GetBool(kHalfBodyKey);
+        display_.SetHalfBody(half_body_);
+        ESP_LOGI("AnimeBoard", "Restored avatar mode: %s", half_body_ ? "half_body" : "full_body");
         boot_.OnClick([this]() {
             auto& app = Application::GetInstance();
             if (app.GetDeviceState() == kDeviceStateStarting) {
@@ -38,6 +45,12 @@ public:
             } else {
                 app.ToggleChatState();
             }
+        });
+        boot_.OnDoubleClick([this]() {
+            Application::GetInstance().Schedule([this]() {
+                if (SetAvatarMode(!half_body_) == ESP_OK)
+                    display_.PreviewMode();
+            });
         });
         led_strip_config_t led{};
         led.strip_gpio_num = pins::rgb;
@@ -59,7 +72,8 @@ public:
                 const auto& mode = props["mode"].value<std::string>();
                 if (mode != "full_body" && mode != "half_body")
                     return std::unexpected("Use full_body or half_body");
-                display_.SetHalfBody(mode == "half_body");
+                if (SetAvatarMode(mode == "half_body") != ESP_OK)
+                    return std::unexpected("Could not save avatar mode");
                 return true;
             });
     }
@@ -87,8 +101,31 @@ public:
     }
 
 private:
+    // Both BOOT and MCP requests reach this method on the application task.
+    esp_err_t SetAvatarMode(bool half_body) {
+        if (half_body == half_body_)
+            return ESP_OK;
+        nvs_handle_t handle;
+        esp_err_t err = nvs_open(kAvatarSettings, NVS_READWRITE, &handle);
+        if (err == ESP_OK) {
+            err = nvs_set_u8(handle, kHalfBodyKey, half_body);
+            if (err == ESP_OK)
+                err = nvs_commit(handle);
+            nvs_close(handle);
+        }
+        if (err != ESP_OK) {
+            ESP_LOGE("AnimeBoard", "Saving avatar mode failed: %s", esp_err_to_name(err));
+            return err;
+        }
+        half_body_ = half_body;
+        display_.SetHalfBody(half_body_);
+        ESP_LOGI("AnimeBoard", "Saved avatar mode: %s", half_body_ ? "half_body" : "full_body");
+        return ESP_OK;
+    }
+
     Button boot_{pins::boot};
     AvatarDisplay display_;
+    bool half_body_ = false;
 };
 
 DECLARE_BOARD(AnimeCompanion);

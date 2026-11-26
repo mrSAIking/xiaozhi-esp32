@@ -711,6 +711,18 @@ config ANIME_PANEL_SELF_TEST
         Write red, green, blue, white and black directly to display RAM
         before starting LVGL, audio or Wi-Fi.
 
+config ANIME_BREATH_AMPLITUDE_PX
+    int "Avatar breathing amplitude in pixels (0 disables)"
+    depends on BOARD_TYPE_ANIME_COMPANION_S3
+    range 0 5
+    default 3
+
+config ANIME_BREATH_PERIOD_MS
+    int "Avatar breathing cycle in milliseconds"
+    depends on BOARD_TYPE_ANIME_COMPANION_S3
+    range 2000 8000
+    default 4000
+
 config ANIME_SETUP_UI_ONLY
     bool "Keep the Xiaozhi UI active for display diagnostics"
     depends on BOARD_TYPE_ANIME_COMPANION_S3

@@ -27,9 +27,27 @@ int main() {
     assert(avatar::EyeFrame(0, holds) == 1 && avatar::EyeFrame(49, holds) == 1);
     assert(avatar::EyeFrame(50, holds) == 2 && avatar::EyeFrame(109, holds) == 2);
     assert(avatar::EyeFrame(110, holds) == 1 && avatar::EyeFrame(170, holds) == 0);
-    assert(avatar::Displacement(0, 0.5f, 1) == 0);
-    assert(avatar::Displacement(0.5f, 1, 1) == 0);
-    assert(avatar::Displacement(0.5f, 0.5f, 1) == 2);
+    assert(avatar::BreathAmount(0, 4000, 3) == 0);
+    assert(avatar::BreathAmount(1680, 4000, 3) == 192);
+    assert(avatar::BreathAmount(4000, 4000, 3) == 0);
+    assert(avatar::BreathAmount(2500, 4000, 0) == 0);
+    assert(avatar::BreathAmount(840, 4000, 3) == 96);
+    for (float edge : {0.f, 1.f}) {
+        assert(avatar::BreathX(edge).lift == 0);
+        assert(avatar::BreathX(edge).spread == 0);
+        assert(avatar::BreathY(edge) == 0);
+    }
+    assert(avatar::BreathY(.24f) == 1);
+    assert(avatar::BreathX(.5f).lift == 1);
+    assert(avatar::BreathX(.14f).spread > 0);
+    assert(avatar::BreathX(.86f).spread < 0);
+    assert(avatar::BreathX(.14f).lift > .8f);
+    const uint16_t tile[] = {0xf800, 0x07e0, 0x001f, 0xffff};
+    assert(avatar::Sample565(tile, 2, 0, 0) == 0xf800);
+    assert(avatar::Sample565(tile, 2, 16, 16) == 0xffff);
+    assert(avatar::Sample565(tile, 2, 8, 8) == 0x8410);
+    const uint16_t line[] = {0, 0xf800, 0, 0xf800};
+    assert(avatar::Sample565(line + 1, 2, -8, 0) == 0x8000);
     const float thresholds[] = {.015f, .065f, .15f};
     assert(avatar::MouthFrame(.014f, thresholds) == 0);
     assert(avatar::MouthFrame(.015f, thresholds) == 1);
