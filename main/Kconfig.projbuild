@@ -160,6 +160,10 @@ choice BOARD_TYPE
     config BOARD_TYPE_ATK_DNESP32S3M_WIFI
         bool "Alientek ATK-DNESP32S3M Wi-Fi (正点原子)"
         depends on IDF_TARGET_ESP32S3
+    config BOARD_TYPE_ANIME_COMPANION_S3
+        bool "Anime Companion S3 (ILI9488)"
+        depends on IDF_TARGET_ESP32S3
+        select AUDIO_PLAYBACK_METER
     config BOARD_TYPE_BREAD_COMPACT_ESP32
         bool "Bread Compact ESP32 DevKit (面包板)"
         depends on IDF_TARGET_ESP32
@@ -175,10 +179,6 @@ choice BOARD_TYPE
     config BOARD_TYPE_BREAD_COMPACT_WIFI
         bool "Bread Compact Wi-Fi (面包板)"
         depends on IDF_TARGET_ESP32S3
-    config BOARD_TYPE_ANIME_COMPANION_S3
-        bool "Anime Companion S3 (ILI9488)"
-        depends on IDF_TARGET_ESP32S3
-        select AUDIO_PLAYBACK_METER
     config BOARD_TYPE_BREAD_COMPACT_WIFI_LCD
         bool "Bread Compact Wi-Fi + LCD (面包板)"
         depends on IDF_TARGET_ESP32S3
