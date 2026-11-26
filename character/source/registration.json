@@ -1,0 +1,99 @@
+{
+  "source_size": [
+    948,
+    1659
+  ],
+  "master_size": [
+    1200,
+    2100
+  ],
+  "convention": "top-left pixel edges, viewer left and right, [x,y,width,height]",
+  "original_features_xywh": {
+    "left_eye": [
+      418,
+      147,
+      42,
+      27
+    ],
+    "right_eye": [
+      491,
+      147,
+      41,
+      27
+    ],
+    "mouth": [
+      457,
+      207,
+      35,
+      18
+    ]
+  },
+  "master_features_xywh": {
+    "left_eye": [
+      529,
+      186,
+      54,
+      35
+    ],
+    "right_eye": [
+      621,
+      186,
+      53,
+      35
+    ],
+    "mouth": [
+      578,
+      262,
+      45,
+      23
+    ]
+  },
+  "original_edit_xywh": {
+    "eyes": [
+      [
+        416,
+        143,
+        47,
+        35
+      ],
+      [
+        488,
+        143,
+        47,
+        35
+      ]
+    ],
+    "mouth": [
+      [
+        449,
+        203,
+        51,
+        33
+      ]
+    ]
+  },
+  "master_edit_xywh": {
+    "eyes": [
+      [
+        526,
+        181,
+        61,
+        45
+      ],
+      [
+        617,
+        181,
+        61,
+        45
+      ]
+    ],
+    "mouth": [
+      [
+        568,
+        256,
+        65,
+        43
+      ]
+    ]
+  }
+}
