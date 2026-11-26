@@ -1,0 +1,46 @@
+name: Anime Companion S3
+on:
+  workflow_dispatch:
+  push:
+    branches: [anime-companion]
+
+permissions:
+  contents: read
+
+jobs:
+  firmware:
+    if: github.ref == 'refs/heads/anime-companion'
+    runs-on: ubuntu-latest
+    container: espressif/idf:release-v6.1
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate character banks and host behavior
+        run: |
+          source "$IDF_PATH/export.sh"
+          python -m pip install Pillow numpy
+          python character/scripts/validate_assets.py
+          python -m unittest discover -s scripts/tests -v
+          g++ -std=c++17 -pthread -Imain/audio -Imain/boards/anime-companion-s3 \
+            scripts/tests/anime_animation_test.cc -o /tmp/test-avatar
+          /tmp/test-avatar
+      - name: Build ESP32-S3 N16R8 firmware
+        run: |
+          source "$IDF_PATH/export.sh"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          idf.py --version
+          python scripts/build.py anime-companion-s3 --name anime-companion-s3
+      - name: Verify merged image and report memory use
+        run: |
+          source "$IDF_PATH/export.sh"
+          python "$IDF_PATH/components/partition_table/gen_esp32part.py" \
+            build/partition_table/partition-table.bin /tmp/actual-partitions.csv
+          python scripts/check_anime_image.py build /tmp/actual-partitions.csv | tee -a "$GITHUB_STEP_SUMMARY"
+          idf.py size | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anime-companion-s3-${{ github.sha }}
+          path: build/merged-binary.bin
+          if-no-files-found: error

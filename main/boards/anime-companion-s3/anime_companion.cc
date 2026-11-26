@@ -1,0 +1,79 @@
+#include "application.h"
+#include "avatar_display.h"
+#include "button.h"
+#include "codecs/no_audio_codec.h"
+#include "config.h"
+#include "mcp_server.h"
+#include "wifi_board.h"
+
+#include <led_strip.h>
+
+namespace {
+void RainbowTask(void* arg) {
+    auto strip = static_cast<led_strip_handle_t>(arg);
+    constexpr int peak = CONFIG_ANIME_LED_BRIGHTNESS;
+    // Six one-second color transitions. The RMT driver clocks the pixel.
+    while (true) {
+        const unsigned hue = (esp_timer_get_time() / 1000) % 6000;
+        const unsigned ramp = (hue % 1000 * peak + 500) / 1000;
+        const unsigned down = peak - ramp;
+        const unsigned colors[6][3] = {{peak, ramp, 0}, {down, peak, 0}, {0, peak, ramp},
+                                       {0, down, peak}, {ramp, 0, peak}, {peak, 0, down}};
+        const auto& c = colors[hue / 1000];
+        ESP_ERROR_CHECK(led_strip_set_pixel(strip, 0, c[0], c[1], c[2]));
+        ESP_ERROR_CHECK(led_strip_refresh(strip));
+        vTaskDelay(pdMS_TO_TICKS(30));
+    }
+}
+}  // namespace
+
+class AnimeCompanion final : public WifiBoard {
+public:
+    AnimeCompanion() {
+        boot_.OnClick([this]() {
+            auto& app = Application::GetInstance();
+            if (app.GetDeviceState() == kDeviceStateStarting) {
+                EnterWifiConfigMode();
+            } else {
+                app.ToggleChatState();
+            }
+        });
+        led_strip_config_t led{};
+        led.strip_gpio_num = pins::rgb;
+        led.max_leds = 1;
+        led.led_model = LED_MODEL_WS2812;
+        led.color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB;
+        led_strip_rmt_config_t rmt{};
+        rmt.resolution_hz = 10000000;
+        led_strip_handle_t strip = nullptr;
+        ESP_ERROR_CHECK(led_strip_new_rmt_device(&led, &rmt, &strip));
+        ESP_ERROR_CHECK(xTaskCreate(RainbowTask, "rainbow", 3072, strip, 1, nullptr) == pdPASS
+                            ? ESP_OK
+                            : ESP_ERR_NO_MEM);
+
+        McpServer::GetInstance().AddTool(
+            "self.avatar.set_mode", "Display the character in full_body or half_body mode.",
+            PropertyList({Property("mode", kPropertyTypeString).SetMaxLength(16)}),
+            [this](const PropertyList& props) -> ToolResult {
+                const auto& mode = props["mode"].value<std::string>();
+                if (mode != "full_body" && mode != "half_body")
+                    return std::unexpected("Use full_body or half_body");
+                display_.SetHalfBody(mode == "half_body");
+                return true;
+            });
+    }
+
+    Display* GetDisplay() override { return &display_; }
+    AudioCodec* GetAudioCodec() override {
+        static NoAudioCodecSimplex codec(16000, 24000, pins::speaker_bclk, pins::speaker_lrc,
+                                         pins::speaker_din, I2S_STD_SLOT_LEFT, pins::mic_sck,
+                                         pins::mic_ws, pins::mic_sd, I2S_STD_SLOT_LEFT);
+        return &codec;
+    }
+
+private:
+    Button boot_{pins::boot};
+    AvatarDisplay display_;
+};
+
+DECLARE_BOARD(AnimeCompanion);

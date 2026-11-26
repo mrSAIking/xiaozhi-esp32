@@ -24,6 +24,9 @@
 #include "fixed_queue.h"
 #include "ogg_demuxer.h"
 #include "protocol.h"
+#if CONFIG_AUDIO_PLAYBACK_METER
+#include "playback_meter.h"
+#endif
 
 /*
  * There are two types of audio data flow:
@@ -126,6 +129,9 @@ public:
     bool IsVoiceDetected() const { return voice_detected_; }
     bool IsIdle();
     bool IsPlaybackIdle();
+#if CONFIG_AUDIO_PLAYBACK_METER
+    float GetPlaybackRms(int64_t now_us) const { return playback_meter_.Read(now_us); }
+#endif
     bool IsWakeWordRunning() const {
         return xEventGroupGetBits(event_group_) & AS_EVENT_WAKE_WORD_RUNNING;
     }
@@ -195,6 +201,9 @@ private:
     bool output_in_flight_ = false;
     bool playback_drained_notified_ = true;
     uint32_t playback_generation_ = 0;
+#if CONFIG_AUDIO_PLAYBACK_METER
+    PlaybackMeter playback_meter_;
+#endif
     // For server AEC
     FixedQueue<uint32_t, MAX_TIMESTAMPS_IN_QUEUE> timestamp_queue_;
 

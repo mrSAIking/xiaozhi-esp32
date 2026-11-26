@@ -180,6 +180,9 @@ void AudioService::Stop() {
     {
         std::lock_guard<std::mutex> lock(audio_queue_mutex_);
         ++playback_generation_;
+#if CONFIG_AUDIO_PLAYBACK_METER
+        playback_meter_.Reset(playback_generation_);
+#endif
         audio_encode_queue_.clear();
         audio_decode_queue_.clear();
         audio_playback_queue_.clear();
@@ -335,6 +338,9 @@ void AudioService::AudioOutputTask() {
         auto task = std::move(audio_playback_queue_.front());
         audio_playback_queue_.pop_front();
         output_in_flight_ = true;
+#if CONFIG_AUDIO_PLAYBACK_METER
+        const auto generation = playback_generation_;
+#endif
         audio_queue_cv_.notify_all();
         lock.unlock();
 
@@ -348,6 +354,14 @@ void AudioService::AudioOutputTask() {
             callbacks_.on_playback_progress(task.playback_id, task.media_position_ms);
         }
 
+#if CONFIG_AUDIO_PLAYBACK_METER
+        const int rate = codec_->output_sample_rate();
+        // Simplex I2S has one active DMA descriptor; the rest can be queued ahead.
+        const int64_t dma_us = 1000000LL * (AUDIO_CODEC_DMA_DESC_NUM - 1) *
+                               AUDIO_CODEC_DMA_FRAME_NUM / rate;
+        playback_meter_.Submit(task.pcm.data(), task.pcm.size(), rate, esp_timer_get_time(),
+                               dma_us, generation);
+#endif
         codec_->OutputData(task.pcm);
 
         /* Update the last output time */
@@ -804,6 +818,9 @@ void AudioService::ResetDecoder() {
     {
         std::lock_guard<std::mutex> lock(audio_queue_mutex_);
         ++playback_generation_;
+#if CONFIG_AUDIO_PLAYBACK_METER
+        playback_meter_.Reset(playback_generation_);
+#endif
         std::unique_lock<std::mutex> decoder_lock(decoder_mutex_);
         if (opus_decoder_ != nullptr) {
             esp_opus_dec_reset(opus_decoder_);

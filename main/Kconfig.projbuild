@@ -175,6 +175,10 @@ choice BOARD_TYPE
     config BOARD_TYPE_BREAD_COMPACT_WIFI
         bool "Bread Compact Wi-Fi (面包板)"
         depends on IDF_TARGET_ESP32S3
+    config BOARD_TYPE_ANIME_COMPANION_S3
+        bool "Anime Companion S3 (ILI9488)"
+        depends on IDF_TARGET_ESP32S3
+        select AUDIO_PLAYBACK_METER
     config BOARD_TYPE_BREAD_COMPACT_WIFI_LCD
         bool "Bread Compact Wi-Fi + LCD (面包板)"
         depends on IDF_TARGET_ESP32S3
@@ -683,6 +687,21 @@ choice BOARD_TYPE
         bool "Zhengchen AI Camera Wi-Fi (征辰科技)"
         depends on IDF_TARGET_ESP32S3
 endchoice
+
+config AUDIO_PLAYBACK_METER
+    bool
+
+config ANIME_SPI_MHZ
+    int "ILI9488 SPI clock (MHz)"
+    depends on BOARD_TYPE_ANIME_COMPANION_S3
+    range 10 40
+    default 10
+
+config ANIME_LED_BRIGHTNESS
+    int "WS2812 maximum channel value (0-255)"
+    depends on BOARD_TYPE_ANIME_COMPANION_S3
+    range 0 255
+    default 12
 
 config RESPEAKER_I2S_EXTERNAL_CLOCK_48K
     bool "ReSpeaker: XMOS supplies 48 kHz I2S clocks"

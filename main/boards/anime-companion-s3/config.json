@@ -1,0 +1,15 @@
+{
+    "type": "anime-companion-s3",
+    "target": "esp32s3",
+    "builds": [
+        {
+            "name": "anime-companion-s3",
+            "sdkconfig_append": [
+                "CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y",
+                "CONFIG_SPIRAM=y",
+                "CONFIG_SPIRAM_MODE_OCT=y",
+                "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"partitions/v2/16m_anime.csv\""
+            ]
+        }
+    ]
+}

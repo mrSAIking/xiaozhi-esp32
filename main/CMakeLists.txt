@@ -665,6 +665,11 @@ elseif(CONFIG_BOARD_TYPE_ESP_MOSAICO)
     set(BUILTIN_TEXT_FONT font_noto_sans_basic_30_4)
     set(BUILTIN_ICON_FONT font_material_symbols_30_4)
     set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_64)
+elseif(CONFIG_BOARD_TYPE_ANIME_COMPANION_S3)
+    set(BOARD_DIR "anime-companion-s3")
+    set(BUILTIN_TEXT_FONT font_noto_sans_basic_16_4)
+    set(BUILTIN_ICON_FONT font_material_symbols_16_4)
+    set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_32)
 elseif(CONFIG_BOARD_TYPE_BREAD_COMPACT_WIFI_LCD)
     set(BOARD_DIR "bread-compact-wifi-lcd")
     set(BUILTIN_TEXT_FONT font_noto_sans_basic_16_4)
@@ -1236,6 +1241,20 @@ idf_component_register(SRCS ${SOURCES}
                         xiaozhi-fonts
                         ${MAIN_PRIV_REQUIRES_EXTRA}
                     )
+
+if(CONFIG_BOARD_TYPE_ANIME_COMPANION_S3 AND NOT CMAKE_BUILD_EARLY_EXPANSION)
+    set(avatar_root "${PROJECT_DIR}/character")
+    set(avatar_out "${CMAKE_CURRENT_BINARY_DIR}/avatar")
+    set(packer "${PROJECT_DIR}/scripts/pack_anime_assets.py")
+    file(GLOB_RECURSE avatar_inputs CONFIGURE_DEPENDS
+        "${avatar_root}/*.rgb565" "${avatar_root}/*/manifest.json")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${avatar_inputs} "${packer}")
+    idf_build_get_property(idf_python PYTHON)
+    execute_process(COMMAND "${idf_python}" "${packer}" "${avatar_root}" "${avatar_out}"
+        COMMAND_ERROR_IS_FATAL ANY)
+    target_include_directories(${COMPONENT_LIB} PRIVATE "${avatar_out}" "boards/${BOARD_DIR}")
+    target_add_binary_data(${COMPONENT_LIB} "${avatar_out}/companion_pixels.bin" BINARY)
+endif()
 
 # Keep project-owned C++ on GNU C++23. ESP-IDF 6 may default to a newer
 # dialect; pin the baseline so main/ does not depend on it.
