@@ -18,6 +18,8 @@ class OggDemuxerTest(unittest.TestCase):
             #include <cassert>
             #include <cstdint>
             #include <cstring>
+            #include <fstream>
+            #include <iterator>
             #include <vector>
 
             #include "ogg_demuxer.h"
@@ -115,7 +117,21 @@ class OggDemuxerTest(unittest.TestCase):
                 assert(packets == std::vector<std::vector<uint8_t>>{expected});
             }
 
-            int main() {
+            int main(int argc, char** argv) {
+                assert(argc == 2);
+                std::ifstream prompt_file(argv[1], std::ios::binary);
+                assert(prompt_file);
+                std::vector<uint8_t> prompt{std::istreambuf_iterator<char>{prompt_file}, {}};
+                OggDemuxer real_prompt;
+                int packets = 0;
+                real_prompt.OnPacket([&](const uint8_t*, int rate, int duration, size_t len) {
+                    assert(rate == 16000 && duration == 60 && len > 0);
+                    ++packets;
+                });
+                real_prompt.Reset();
+                assert(real_prompt.Process(prompt.data(), prompt.size()) == prompt.size());
+                assert(real_prompt.Finish() && packets == 46);
+
                 for (size_t size : {254U, 255U, 256U, 510U}) {
                     const auto packet = PaddedOpusPacket(size);
                     const auto stream = Stream(packet);
@@ -163,7 +179,8 @@ class OggDemuxerTest(unittest.TestCase):
                 str(executable),
             ]
             subprocess.run(command, check=True, cwd=build_dir)
-            subprocess.run([executable], check=True, cwd=build_dir)
+            subprocess.run([executable, ROOT / "main/assets/locales/en-US/wificonfig.ogg"],
+                           check=True, cwd=build_dir)
 
 
 if __name__ == "__main__":

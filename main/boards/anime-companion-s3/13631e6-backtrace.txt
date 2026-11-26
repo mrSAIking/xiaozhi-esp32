@@ -1,0 +1,50 @@
+Xiaozhi anime-companion-s3: provisioning assertion in 13631e6
+Original Actions run 45779112481, artifact 15097792402
+Original commit 13631e6fe0684b0cab58ae91504b264551286015
+xiaozhi.elf SHA-256 71212f08c5e4861e8d6709212d8464de6e3f695270c6f6c250a3025dc630b005
+The reported device prefix is 71212f08c. The archived merged image has the same
+32-byte ELF digest in its app descriptor. Its flash text matches the ELF.
+
+PC          SP          Function / linked source and inline callers
+0x403860c9  0x3fcee900  panic_abort, panic.c:512
+0x40386095  0x3fcee920  esp_system_abort, esp_system_chip.c:87
+0x40384d51  0x3fcee940  __assert_func, assert.c:81
+0x4206b8ef  0x3fceea60  dl_nn_assert, dl_nn_args_t.c:138
+                        inlined into dl_nn_args_check, dl_nn_args_t.c:148
+0x4206bcf4  0x3fceea80  dl_nn_depthwise_conv1d, dl_nn_depthwise_conv1d.c:90
+0x420ccae0  0x3fceeab0  refr_invalid_areas, lv_refr.c:811
+                        inlined into lv_display_refr_timer, lv_refr.c:419
+0x420d6aa8  0x3fceeb40  lv_timer_exec, lv_timer.c:353
+                        inlined into lv_timer_handler, lv_timer.c:107
+0x420bef18  0x3fceeb60  lvgl_port_task, esp_lvgl_port.c:242
+
+The ESP-SR 2.4.7 ESP32-S3 libdl_lib.a argument checker shares one compiled
+assert-failure block between bias exponent checks. DWARF identifies the
+argument fields as bias_s16/bias_s8, bias_exponent, in_exponent and
+kernel_exponent. The supplied trace does not contain their runtime values.
+
+Cross-check against Xtensa instructions, applying the aligned PC-relative
+call displacement:
+  4206bcf4  e5 bc ff   call8 4206b8c4 <dl_nn_args_check>
+  420ccae0  e5 d8 fe   call8 420cb870 <draw_buf_flush>
+  420cb8f3  e0 08 00   callx8 a8   (display flush callback in draw_buf_flush)
+There is no direct call from the recorded LVGL site to the recorded
+convolution function. The provided unwind cannot establish the origin of that
+transition. No Opus, rate converter, AFE feed/fetch or WakeNet invocation
+appears in the supplied frames.
+
+The hardware log places the AP and DHCP/web startup before the alert. The alert
+changes three UI elements and starts the English Ogg/Opus prompt. Its 46 mono
+60 ms packets specify 16 kHz, for 960 input samples per packet and nominally
+1,440 samples at the 24 kHz speaker rate. The actual count is returned by the
+converter. The prompt embedded in this ELF matches the repository file and
+decodes to 24 kHz PCM on the host. Host decoding does not exercise the ESP32
+vendor binaries, concurrent display refresh, or I2S.
+
+The original build linked esp_audio_codec 2.5.0, esp_audio_effects 1.3.0~1,
+ESP-SR 2.4.7 for esp32s3, and packaged wn9_hiesp. Loading its model list
+succeeded. In wifi_configuring the application disables voice processing and
+wake-word detection. Loading the list does not start inference.
+
+Reproduce the symbol lookup using the original ELF (never a subsequent build):
+  xtensa-esp-elf-addr2line -pfiaC -e xiaozhi.elf 0x403860c9 0x40386095 0x40384d51 0x4206b8ef 0x4206bcf4 0x420ccae0 0x420d6aa8 0x420bef18

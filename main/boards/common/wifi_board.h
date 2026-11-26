@@ -30,6 +30,7 @@ protected:
      * Enter WiFi configuration mode
      */
     void StartWifiConfigMode();
+    virtual void ShowWifiConfigPrompt(const std::string& hint);
 
     /**
      * WiFi connection timeout callback

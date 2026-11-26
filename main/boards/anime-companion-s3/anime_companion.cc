@@ -1,4 +1,5 @@
 #include "application.h"
+#include "assets/lang_config.h"
 #include "avatar_display.h"
 #include "button.h"
 #include "codecs/no_audio_codec.h"
@@ -101,6 +102,28 @@ public:
     }
 
 private:
+    void ShowWifiConfigPrompt(const std::string& hint) override {
+        // Publish all three UI changes in one refresh. The display task signals completion
+        // after its synchronous SPI flushes. PlaySound can wait on the Opus queue, so it
+        // must run on the application task after the display lock has been released.
+        DisplayLockGuard guard(&display_);
+        auto& app = Application::GetInstance();
+        app.Alert(Lang::Strings::WIFI_CONFIG_MODE, hint.c_str(), "gear");
+        ESP_LOGI("AnimeBoard",
+                 "Provisioning text queued; waiting for display refresh before audio");
+        display_.AfterRefresh([] {
+            auto& app = Application::GetInstance();
+            if (app.GetDeviceState() != kDeviceStateWifiConfiguring)
+                return;
+            ESP_LOGI("AnimeBoard",
+                     "Provisioning refresh complete; starting prompt (wake=%d, voice=%d)",
+                     app.GetAudioService().IsWakeWordRunning(),
+                     app.GetAudioService().IsAudioProcessorRunning());
+            app.PlaySound(Lang::Sounds::OGG_WIFICONFIG);
+            ESP_LOGI("AnimeBoard", "Provisioning Opus packets submitted");
+        });
+    }
+
     // Both BOOT and MCP requests reach this method on the application task.
     esp_err_t SetAvatarMode(bool half_body) {
         if (half_body == half_body_)

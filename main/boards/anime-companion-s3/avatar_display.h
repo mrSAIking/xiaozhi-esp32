@@ -11,6 +11,7 @@ public:
     AvatarDisplay();
     void SetupUI() override;
     void SetHalfBody(bool half) { requested_mode_.store(half ? 1 : 0); }
+    void AfterRefresh(void (*callback)());
     void PreviewMode() { preview_requested_.store(true); }
 
 private:
@@ -22,6 +23,7 @@ private:
     int Breathe(const avatar::Rect& region, int amount);
     bool Invalidate(const avatar::Rect& rect);
     void CheckBreathFlush(const lv_area_t& area, const lv_draw_buf_t& buffer);
+    void (*after_refresh_)() = nullptr;  // Protected by the LVGL port lock.
     Ili9488 panel_driver_;
     lv_obj_t* setup_screen_ = nullptr;
     lv_obj_t* avatar_screen_ = nullptr;

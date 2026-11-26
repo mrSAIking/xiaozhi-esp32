@@ -58,8 +58,26 @@ AvatarDisplay::AvatarDisplay() : LcdDisplay(nullptr, nullptr, kWidth, kHeight) {
             avatar->CheckBreathFlush(*area, *buffer);
             lv_display_flush_ready(display);
         });
+    lv_display_add_event_cb(
+        display_,
+        [](lv_event_t* event) {
+            auto* avatar = static_cast<AvatarDisplay*>(lv_event_get_user_data(event));
+            if (auto callback = avatar->after_refresh_) {
+                avatar->after_refresh_ = nullptr;
+                Application::GetInstance().Schedule(callback);
+            }
+        },
+        LV_EVENT_REFR_READY, this);
     lv_timer_set_period(refresh, 10);
     ESP_LOGI("Avatar", "LVGL display registered, PSRAM strip=%zu bytes, refresh paused", bytes);
+}
+
+void AvatarDisplay::AfterRefresh(void (*callback)()) {
+    DisplayLockGuard guard(this);
+    after_refresh_ = callback;
+    auto* timer = lv_display_get_refr_timer(display_);
+    lv_timer_resume(timer);
+    lv_timer_ready(timer);
 }
 
 bool AvatarDisplay::Lock(int) { return lvgl_port_lock(0); }

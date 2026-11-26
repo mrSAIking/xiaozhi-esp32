@@ -36,6 +36,10 @@ jobs:
         run: |
           source "$IDF_PATH/export.sh"
           python -m unittest discover -s scripts/tests -p test_assets.py -v
+          grep -Fx CONFIG_ESP_BROWNOUT_DET=y sdkconfig
+          grep -Fx CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y sdkconfig
+          grep -Fx CONFIG_ESP_COREDUMP_ENABLE_TO_UART=y sdkconfig
+          cp main/boards/anime-companion-s3/13631e6-backtrace.txt build/
           test -s build/xiaozhi.elf
           test -s build/xiaozhi.map
           sha256sum build/xiaozhi.elf | tee -a "$GITHUB_STEP_SUMMARY"
@@ -50,4 +54,5 @@ jobs:
             build/merged-binary.bin
             build/xiaozhi.elf
             build/xiaozhi.map
+            build/13631e6-backtrace.txt
           if-no-files-found: error
