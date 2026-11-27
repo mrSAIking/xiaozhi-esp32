@@ -9,7 +9,7 @@ import { setTimeout as pause } from "node:timers/promises";
 const web = "main/boards/anime-companion-s3/web/",
   vendor = "components/78__esp-wifi-connect/assets/";
 const snapshot = {
-  home: false,
+  home: false, white:false, half:false, subtitles:false, volume:65,
   enabled: false,
   city: "",
   country: "",
@@ -38,6 +38,7 @@ const server = createServer(async (req, res) => {
       let raw = "";
       for await (const part of req) raw += part;
       const p = JSON.parse(raw);
+      if (p.action === "appearance") Object.assign(snapshot,p);
       if (p.action === "time") {
         snapshot.zone = p.zone;
         snapshot.h24 = p.h24;
@@ -150,6 +151,7 @@ try {
     assert.ok(
       await evaluate("document.documentElement.scrollWidth<=innerWidth"),
     );
+    await evaluate("page('appearance')");
     await pause(150);
     const shot = await call("Page.captureScreenshot", {
       format: "png",
@@ -160,6 +162,8 @@ try {
       Buffer.from(shot.data, "base64"),
     );
   }
+  await evaluate("$('bgwhite').click();$('bodyMode').value='half';$('showSubs').click();$('volume').value=25;$('applyControls').click()");
+  await until("state.white && state.half && state.subtitles && state.volume===25");
   await evaluate("page('weather');$('key').value='new';$('reveal').click();");
   assert.equal(await evaluate("$('key').type"), "text");
   await evaluate("$('clear').click();$('test').click()");

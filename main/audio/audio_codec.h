@@ -6,6 +6,7 @@
 #include <driver/i2s_std.h>
 #include <esp_idf_version.h>
 
+#include <atomic>
 #include <vector>
 #include <string>
 #include <functional>
@@ -61,7 +62,14 @@ protected:
     int output_sample_rate_ = 0;
     int input_channels_ = 1;
     int output_channels_ = 1;
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    std::atomic<int> output_volume_{70};
+public:
+    void PreviewOutputVolume(int volume) { output_volume_.store(volume); }
+protected:
+#else
     int output_volume_ = 70;
+#endif
     float input_gain_ = 0.0;
 
     virtual int Read(int16_t* dest, int samples) = 0;

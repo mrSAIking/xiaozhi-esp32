@@ -462,6 +462,12 @@ void WifiConfigurationAp::StartWebServer()
             if (!aura_allow_portal_write(req)) return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Invalid provisioning request");
 #endif
 
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+            extern bool aura_return_to_station();
+            if (!aura_return_to_station())
+                return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Save a Wi-Fi network first");
+            return httpd_resp_sendstr(req, "{\"success\":true}");
+#else
             auto* this_ = static_cast<WifiConfigurationAp*>(req->user_ctx);
             
             // 设置响应头，防止浏览器缓存
@@ -486,6 +492,7 @@ void WifiConfigurationAp::StartWebServer()
             }, "exit_config_task", 4096, this_, 5, NULL);
             
             return ESP_OK;
+#endif
         },
         .user_ctx = this
     };

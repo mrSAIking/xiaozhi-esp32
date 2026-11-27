@@ -609,6 +609,9 @@ void Application::InitializeProtocol() {
     protocol_->OnAudioChannelClosed([this, &board]() {
         board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
         Schedule([this]() {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+            if (!protocol_ || GetDeviceState() == kDeviceStateWifiConfiguring) return;
+#endif
             auto display = Board::GetInstance().GetDisplay();
             display->SetChatMessage("system", "");
             SetDeviceState(kDeviceStateIdle);
@@ -1465,6 +1468,26 @@ void Application::SetAecMode(AecMode mode) {
 }
 
 void Application::PlaySound(const std::string_view& sound) { audio_service_.PlaySound(sound); }
+
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+bool Application::PrepareForWifiSettings() {
+    const auto state = GetDeviceState();
+    if (state == kDeviceStateStarting) return true;
+    if (state != kDeviceStateIdle && state != kDeviceStateListening && state != kDeviceStateSpeaking &&
+        state != kDeviceStateNotifying && state != kDeviceStateConnecting) return false;
+    if (state == kDeviceStateNotifying) StopNotification();
+    if (state == kDeviceStateSpeaking) AbortSpeaking(kAbortReasonNone);
+    if (state == kDeviceStateListening && protocol_) protocol_->SendStopListening();
+    pending_listening_start_ = false;
+    audio_service_.EnableVoiceProcessing(false);
+    audio_service_.EnableWakeWordDetection(false);
+    audio_service_.ResetDecoder();
+    if (protocol_ && protocol_->IsAudioChannelOpened()) protocol_->CloseAudioChannel();
+    protocol_.reset();
+    if (GetDeviceState() != kDeviceStateIdle) SetDeviceState(kDeviceStateIdle);
+    return true;
+}
+#endif
 
 void Application::ResetProtocol() {
     Schedule([this]() {

@@ -12,6 +12,14 @@ public:
     AvatarDisplay();
     void SetupUI() override;
     void SetHalfBody(bool half) { requested_mode_.store(half ? 1 : 0); }
+    void SetWhite(bool value) { requested_white_.store(value); }
+    void Volume(int percent);
+    void SystemMessage(const char* title, const char* message);
+    void SetChatMessage(const char* role, const char* content) override;
+    void ShowNotification(const char* text, int duration_ms = 3000) override;
+    void ShowNotification(const std::string& text, int duration_ms = 3000) override {
+        ShowNotification(text.c_str(), duration_ms);
+    }
     void SetTextMode(bool enabled);
     void SetConversationText(const char* role, const char* content) override;
     void CancelConversationText() override;
@@ -45,6 +53,13 @@ private:
     std::atomic<int> requested_mode_{0};
     std::atomic<bool> preview_requested_{false};
     int64_t preview_until_ = 0;
+    std::atomic<bool> requested_white_{false};
+    bool white_ = false;
+    const uint16_t* Pixels(int offset) const;
+    lv_obj_t *system_title_ = nullptr, *system_message_ = nullptr;
+    lv_obj_t *volume_box_ = nullptr, *volume_label_ = nullptr, *volume_bar_ = nullptr;
+    lv_obj_t* notice_ = nullptr;
+    int64_t volume_until_ = 0, notice_until_ = 0;
     int current_mode_ = -1;
     lv_obj_t *dot_ = nullptr, *caption_bar_ = nullptr, *caption_label_ = nullptr;
     std::shared_ptr<LvglFont> caption_font_;

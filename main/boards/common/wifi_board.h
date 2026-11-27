@@ -2,6 +2,7 @@
 #define WIFI_BOARD_H
 
 #include "board.h"
+#include <atomic>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 #include <esp_timer.h>
@@ -9,6 +10,9 @@
 class WifiBoard : public Board {
 protected:
     esp_timer_handle_t connect_timer_ = nullptr;
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    std::atomic<bool> reconnect_failed_{false};
+#endif
     bool in_config_mode_ = false;
     NetworkEventCallback network_event_callback_ = nullptr;
 

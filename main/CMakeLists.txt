@@ -1253,6 +1253,8 @@ if(CONFIG_BOARD_TYPE_ANIME_COMPANION_S3 AND NOT CMAKE_BUILD_EARLY_EXPANSION)
     set(avatar_out "${CMAKE_CURRENT_BINARY_DIR}/avatar")
     set(packer "${PROJECT_DIR}/scripts/pack_anime_assets.py")
     file(GLOB_RECURSE avatar_inputs CONFIGURE_DEPENDS
+        "${avatar_root}/../full_body/*.rgb565" "${avatar_root}/../half_body/*.rgb565"
+        "${avatar_root}/../full_body/manifest.json" "${avatar_root}/../half_body/manifest.json"
         "${avatar_root}/*.rgb565" "${avatar_root}/*/manifest.json")
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${avatar_inputs} "${packer}")
     idf_build_get_property(idf_python PYTHON)

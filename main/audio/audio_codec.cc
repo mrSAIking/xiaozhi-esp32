@@ -29,8 +29,13 @@ bool AudioCodec::InputData(std::vector<int16_t>& data) {
 void AudioCodec::Start() {
     Settings settings("audio", false);
     output_volume_ = settings.GetInt("output_volume", output_volume_);
-    if (output_volume_ <= 0) {
-        ESP_LOGW(TAG, "Output volume value (%d) is too small, setting to default (10)", output_volume_);
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    if (output_volume() < 0 || output_volume() > 100)
+#else
+    if (output_volume_ <= 0)
+#endif
+    {
+        ESP_LOGW(TAG, "Output volume value (%d) is too small, setting to default (10)", output_volume());
         output_volume_ = 10;
     }
 

@@ -15,5 +15,8 @@ constexpr auto speaker_bclk = GPIO_NUM_15;
 constexpr auto speaker_lrc = GPIO_NUM_16;
 constexpr auto speaker_din = GPIO_NUM_17;
 constexpr auto rgb = GPIO_NUM_48;
+constexpr auto volume_up = GPIO_NUM_13;
+constexpr auto volume_down = GPIO_NUM_14;
+constexpr auto settings = GPIO_NUM_18;
 constexpr auto boot = GPIO_NUM_0;
 }  // namespace pins

@@ -132,6 +132,9 @@ public:
      * This includes closing audio channel, resetting protocol and ota objects
      */
     void ResetProtocol();
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    bool PrepareForWifiSettings();  // application task only
+#endif
 
 private:
     Application();

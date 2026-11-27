@@ -8,7 +8,7 @@ def initializer(values):
     return "{" + ", ".join(map(str, values)) + "}"
 
 
-def pack(source, output):
+def bank(source):
     pixels = bytearray()
     modes = []
     for name in ("full_body", "half_body"):
@@ -56,10 +56,21 @@ def pack(source, output):
                        speech["update_ms"]))
         modes.append(initializer(fields))
 
+    return pixels, modes
+
+
+def pack(source, output):
+    pixels, modes = bank(source)
+    white, white_modes = bank(source.parent)
+    if modes != white_modes:
+        raise ValueError("Background banks must share all animation offsets and geometry")
+    stride = len(pixels)
+    pixels.extend(white)
     output.mkdir(parents=True, exist_ok=True)
     (output / "companion_pixels.bin").write_bytes(pixels)
     (output / "companion_index.h").write_text(
         '#pragma once\n#include "avatar_math.h"\nnamespace avatar {\n'
+        + f'inline constexpr int background_stride = {stride};\n'
         + 'inline constexpr Mode modes[] = {\n' + ',\n'.join(modes) + '\n};\n}\n'
     )
 

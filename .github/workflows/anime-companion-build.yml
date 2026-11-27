@@ -35,6 +35,8 @@ jobs:
           /tmp/test-pose
           g++ -O2 -std=c++17 -Imain/boards/anime-companion-s3 scripts/tests/aura_ui_test.cc -o /tmp/test-ui
           /tmp/test-ui
+          g++ -std=c++17 -Imain/boards/anime-companion-s3 scripts/tests/aura_controls_test.cc -o /tmp/test-controls
+          /tmp/test-controls
       - name: Render and verify desktop previews
         if: matrix.spi_mhz == 10
         run: |

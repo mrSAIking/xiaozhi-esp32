@@ -10,6 +10,9 @@
 class NoAudioCodec : public AudioCodec {
 protected:
     std::mutex data_if_mutex_;
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    int32_t previous_gain_ = 0;
+#endif
 
     virtual int Write(const int16_t* data, int samples) override;
     virtual int Read(int16_t* dest, int samples) override;

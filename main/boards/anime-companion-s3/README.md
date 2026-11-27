@@ -50,3 +50,18 @@ Clock defaults are Asia/Kolkata, 12-hour display and automatic SNTP. Until SNTP 
 The vendored 78/esp-wifi-connect 4.0.0 base is upstream revision 2b7f8926f3e357a5a52ad5cc95f39669710d63c7. Board-specific routes share the upstream provisioning server. Home mode runs its own server and mDNS registration. The original supplied Project Aura PNG was scaled proportionally and encoded for the embedded logo and 320 x 480 RGB565 boot screen.
 
 For desktop visual verification, run `node scripts/preview_aura_portal.mjs` with the `BROWSER` environment variable pointing at Chromium or Edge. The preview server binds to loopback and uses fixture data. The Actions service tests exercise the production parser, cache and settings logic against simulated HTTPS, NVS and SNTP adapters.
+
+## Appearance, volume and settings
+
+Both portals offer **Appearance & Controls**. Select an original black or white character bank, body mode, subtitles and speaker volume. The device saves the selection. Both banks ship inside each OTA application and use one 307,200-byte active PSRAM framebuffer. Each bank contains 647,310 bytes including facial patches.
+
+Connect one normally open switch between each input and GND. Confirm these pins are exposed and unused on your particular carrier. Internal pull-ups hold the inputs high. Firmware debounces both edges for 40 ms.
+
+| Function | GPIO | Operation |
+|---|---:|---|
+| Volume up | 13 | +5 on press; hold 500 ms to repeat every 180 ms |
+| Volume down | 14 | -5 on press; hold to repeat; release saves the level |
+| Settings | 18 | Press once to enter the hotspot, press again to reconnect |
+| BOOT | 0 | Existing single-click and double-click controls |
+
+The settings screen displays the actual SSID and URL. Save a network before choosing **Save & Return to Aura**. If the connection times out, the device reopens the hotspot. The system-screen preview PNGs use example credentials and codes. Verify hotspot entry during speech, reconnection, retained mute, both backgrounds and animations on the panel.

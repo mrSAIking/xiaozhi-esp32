@@ -23,4 +23,13 @@ class AvatarAssetsTest(unittest.TestCase):
                     for frame in manifest["frames"][group].values():
                         expected.extend((directory / frame["file"]).read_bytes())
             self.assertEqual(len(expected), 647310)
-            self.assertEqual((out / "companion_pixels.bin").read_bytes(), expected)
+            white = bytearray()
+            for mode in ("full_body", "half_body"):
+                directory = ROOT / "character" / mode
+                manifest = json.loads((directory / "manifest.json").read_text())
+                white.extend((directory / manifest["base_file"]).read_bytes())
+                for group in ("eyes", "mouth"):
+                    for frame in manifest["frames"][group].values():
+                        white.extend((directory / frame["file"]).read_bytes())
+            self.assertEqual(len(white), len(expected))
+            self.assertEqual((out / "companion_pixels.bin").read_bytes(), expected + white)

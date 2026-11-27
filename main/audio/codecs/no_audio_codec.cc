@@ -221,9 +221,15 @@ int NoAudioCodec::Write(const int16_t* data, int samples) {
 
     // output_volume_: 0-100
     // volume_factor_: 0-65536
-    int32_t volume_factor = pow(double(output_volume_) / 100.0, 2) * 65536;
+    int32_t volume_factor = pow(double(output_volume()) / 100.0, 2) * 65536;
     for (int i = 0; i < samples; i++) {
-        int64_t temp = int64_t(data[i]) * volume_factor; // 使用 int64_t 进行乘法运算
+        int32_t gain = volume_factor;
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+        // Ramp the gain over the first 5 ms of this buffer.
+        const int ramp = std::min(samples, output_sample_rate_ / 200);
+        if (i < ramp) gain = previous_gain_ + (volume_factor - previous_gain_) * (i + 1) / ramp;
+#endif
+        int64_t temp = int64_t(data[i]) * gain; // 使用 int64_t 进行乘法运算
         if (temp > INT32_MAX) {
             buffer[i] = INT32_MAX;
         } else if (temp < INT32_MIN) {
@@ -233,6 +239,9 @@ int NoAudioCodec::Write(const int16_t* data, int samples) {
         }
     }
 
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    previous_gain_ = volume_factor;
+#endif
     size_t bytes_written;
     ESP_ERROR_CHECK(i2s_channel_write(tx_handle_, buffer.data(), samples * sizeof(int32_t), &bytes_written, portMAX_DELAY));
     return bytes_written / sizeof(int32_t);

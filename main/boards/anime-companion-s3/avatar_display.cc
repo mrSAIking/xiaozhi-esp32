@@ -20,7 +20,7 @@ constexpr int kWidth = Ili9488::kWidth, kHeight = Ili9488::kHeight;
 constexpr size_t kFrameBytes = kWidth * kHeight * sizeof(uint16_t);
 
 constexpr int kPreviewMs = 5000;
-const uint16_t* Pixels(int offset) { return companion_pixels + offset / 2; }
+
 
 int64_t NextBlink(int64_t ms, const avatar::Mode& mode) {
     return ms + mode.interval[0] + esp_random() % (mode.interval[1] - mode.interval[0] + 1);
@@ -78,10 +78,48 @@ AvatarDisplay::AvatarDisplay() : LcdDisplay(nullptr, nullptr, kWidth, kHeight) {
     ESP_LOGI("Avatar", "LVGL display registered, PSRAM strip=%zu bytes, refresh paused", bytes);
 }
 
+const uint16_t* AvatarDisplay::Pixels(int offset) const {
+    return companion_pixels + (offset + (white_ ? avatar::background_stride : 0)) / 2;
+}
+
+void AvatarDisplay::SystemMessage(const char* title, const char* message) {
+    DisplayLockGuard guard(this);
+    if (!system_title_) return;
+    lv_label_set_text(system_title_, title);
+    lv_label_set_text(system_message_, message);
+    if (lv_screen_active() != setup_screen_) lv_screen_load(setup_screen_);
+}
+
+void AvatarDisplay::SetChatMessage(const char* role, const char* content) {
+    DisplayLockGuard guard(this);
+    if (system_message_ && (activation_prompt_ || recovery_))
+        lv_label_set_text(system_message_, content ? content : "");
+    LcdDisplay::SetChatMessage(role, content);
+}
+
+void AvatarDisplay::ShowNotification(const char* text, int duration_ms) {
+    DisplayLockGuard guard(this);
+    if (!notice_) { LcdDisplay::ShowNotification(text, duration_ms); return; }
+    lv_label_set_text(notice_, text);
+    lv_obj_remove_flag(notice_, LV_OBJ_FLAG_HIDDEN);
+    notice_until_ = esp_timer_get_time()/1000 + duration_ms;
+}
+
+void AvatarDisplay::Volume(int percent) {
+    DisplayLockGuard guard(this);
+    if (!volume_box_) return;
+    lv_label_set_text_fmt(volume_label_, LV_SYMBOL_VOLUME_MAX "   %d%%", percent);
+    lv_bar_set_value(volume_bar_, percent, LV_ANIM_OFF);
+    lv_obj_remove_flag(volume_box_, LV_OBJ_FLAG_HIDDEN);
+    volume_until_ = esp_timer_get_time()/1000 + 1500;
+}
+
 void AvatarDisplay::SetStatus(const char* status) {
     DisplayLockGuard lock(this);
     recovery_ = status && std::strcmp(status, Lang::Strings::ERROR) == 0;
     activation_prompt_ = status && std::strcmp(status, Lang::Strings::ACTIVATION) == 0;
+    if (system_title_ && (activation_prompt_ || recovery_))
+        lv_label_set_text(system_title_, activation_prompt_ ? "Activation" : "Recovery");
     LcdDisplay::SetStatus(status);
 }
 void AvatarDisplay::ShowProvisioning() {
@@ -121,7 +159,7 @@ void AvatarDisplay::SetupUI() {
         ESP_LOGE("Avatar", "No PSRAM framebuffer; retaining setup screen");
         return;
     }
-    setup_screen_ = lv_screen_active();
+
     avatar_screen_ = lv_obj_create(nullptr);
     lv_obj_remove_style_all(avatar_screen_);
     lv_obj_remove_flag(avatar_screen_, LV_OBJ_FLAG_SCROLLABLE);
@@ -158,6 +196,49 @@ void AvatarDisplay::SetupUI() {
     lv_obj_set_size(boot_fill_, 24, 3);
     lv_obj_set_style_bg_color(boot_fill_, lv_color_hex(0x9333ea), 0);
     lv_obj_set_style_bg_opa(boot_fill_, 255, 0);
+    setup_screen_ = lv_obj_create(nullptr);
+    lv_obj_set_style_bg_color(setup_screen_, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(setup_screen_, LV_OPA_COVER, 0);
+    lv_obj_remove_flag(setup_screen_, LV_OBJ_FLAG_SCROLLABLE);
+    // Crop the centered logo from the existing boot art without a second asset.
+    auto* crop = lv_obj_create(setup_screen_);
+    lv_obj_remove_style_all(crop);
+    lv_obj_remove_flag(crop, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(crop, 320, 150);
+    auto* mark = lv_image_create(crop);
+    lv_image_set_src(mark, &boot_image_);
+    lv_obj_set_y(mark, -142);
+    auto label = [](lv_obj_t* parent, int y, uint32_t color) {
+        auto* obj = lv_label_create(parent);
+        lv_obj_set_width(obj, 284);
+        lv_obj_align(obj, LV_ALIGN_TOP_MID, 0, y);
+        lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_color(obj, lv_color_hex(color), 0);
+        lv_label_set_text(obj, "");
+        return obj;
+    };
+    system_title_ = label(setup_screen_, 172, 0xda91ff);
+    system_message_ = label(setup_screen_, 225, 0xffffff);
+    if (auto font = GetTheme()->GetTextFont())
+        lv_obj_set_style_text_font(system_message_, font->font(), 0);
+    volume_box_ = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(volume_box_, 136, 57);
+    lv_obj_align(volume_box_, LV_ALIGN_TOP_LEFT, 8, 8);
+    lv_obj_set_style_pad_all(volume_box_, 7, 0);
+    lv_obj_set_style_bg_color(volume_box_, lv_color_hex(0x17131c), 0);
+    lv_obj_set_style_bg_opa(volume_box_, LV_OPA_90, 0);
+    lv_obj_remove_flag(volume_box_, LV_OBJ_FLAG_SCROLLABLE);
+    volume_label_ = lv_label_create(volume_box_);
+    lv_obj_set_style_text_color(volume_label_, lv_color_white(), 0);
+    volume_bar_ = lv_bar_create(volume_box_);
+    lv_obj_set_size(volume_bar_, 112, 5);
+    lv_obj_align(volume_bar_, LV_ALIGN_BOTTOM_MID, 0, -2);
+    lv_obj_set_style_bg_color(volume_bar_, lv_color_hex(0x9333ea), LV_PART_INDICATOR);
+    lv_obj_add_flag(volume_box_, LV_OBJ_FLAG_HIDDEN);
+    notice_ = label(lv_layer_top(), 76, 0xffffff);
+    lv_obj_set_style_bg_color(notice_, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(notice_, LV_OPA_80, 0);
+    lv_obj_add_flag(notice_, LV_OBJ_FLAG_HIDDEN);
     lv_screen_load(boot_screen_);
     lv_timer_create(
         [](lv_timer_t* timer) {
@@ -182,6 +263,7 @@ void AvatarDisplay::Patch(const avatar::Rect& rect, int offset) {
 
 void AvatarDisplay::LoadMode(int selected, int64_t ms) {
     const auto& mode = avatar::modes[selected];
+    white_ = requested_white_.load();
     std::memcpy(frame_, Pixels(mode.base), kFrameBytes);
 
     current_mode_ = selected;
@@ -321,6 +403,14 @@ void AvatarDisplay::Tick() {
                       state == kDeviceStateNotifying;
     const auto now_us = esp_timer_get_time();
     const int64_t ms = now_us / 1000;
+    if (volume_until_ && ms >= volume_until_) {
+        lv_obj_add_flag(volume_box_, LV_OBJ_FLAG_HIDDEN);
+        volume_until_ = 0;
+    }
+    if (notice_until_ && ms >= notice_until_) {
+        lv_obj_add_flag(notice_, LV_OBJ_FLAG_HIDDEN);
+        notice_until_ = 0;
+    }
     const bool can_preview = state == kDeviceStateStarting ||
                              state == kDeviceStateWifiConfiguring ||
                              state == kDeviceStateActivating;
@@ -348,7 +438,7 @@ void AvatarDisplay::Tick() {
     }
     const int selected = requested_mode_.load();
     const auto& mode = avatar::modes[selected];
-    if (current_mode_ != selected) {
+    if (current_mode_ != selected || white_ != requested_white_.load()) {
         LoadMode(selected, ms);
         lv_obj_invalidate(image_);
     }

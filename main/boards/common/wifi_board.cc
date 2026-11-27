@@ -121,7 +121,9 @@ void WifiBoard::TryWifiConnect() {
     } else {
         // No SSID configured, enter config mode
         // Wait for the board version to be shown
+#if !CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
         vTaskDelay(pdMS_TO_TICKS(1500));
+#endif
         StartWifiConfigMode();
     }
 }
@@ -179,8 +181,18 @@ void WifiBoard::OnWifiConnectTimeout(void* arg) {
     auto* board = static_cast<WifiBoard*>(arg);
     ESP_LOGW(TAG, "WiFi connection timeout, entering config mode");
 
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    Application::GetInstance().Schedule([board] {
+        auto& wifi = WifiManager::GetInstance();
+        if (wifi.IsConnected() || wifi.IsConfigMode()) return;
+        board->reconnect_failed_ = true;
+        wifi.StopStation();
+        board->StartWifiConfigMode();
+    });
+#else
     WifiManager::GetInstance().StopStation();
     board->StartWifiConfigMode();
+#endif
 }
 
 void WifiBoard::ShowWifiConfigPrompt(const std::string& hint) {
@@ -218,6 +230,16 @@ void WifiBoard::StartWifiConfigMode() {
 
 void WifiBoard::EnterWifiConfigMode() {
     ESP_LOGI(TAG, "EnterWifiConfigMode called");
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    if (IsInWifiConfigMode()) return;
+    auto& app = Application::GetInstance();
+    if (!app.PrepareForWifiSettings()) return;
+    GetDisplay()->ShowNotification("Opening Settings...", 900);
+    esp_timer_stop(connect_timer_);
+    aura::StopHome();
+    WifiManager::GetInstance().StopStation();
+    StartWifiConfigMode();
+#else
     GetDisplay()->ShowNotification(Lang::Strings::ENTERING_WIFI_CONFIG_MODE);
 
     auto& app = Application::GetInstance();
@@ -256,6 +278,7 @@ void WifiBoard::EnterWifiConfigMode() {
     WifiManager::GetInstance().StopStation();
 
     StartWifiConfigMode();
+#endif
 }
 
 bool WifiBoard::IsInWifiConfigMode() const {

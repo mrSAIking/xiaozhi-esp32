@@ -2,6 +2,7 @@
 #include <cstring>
 #include <mutex>
 #include "aura_service.h"
+#include "appearance.h"
 #include "esp_http_server.h"
 #include "esp_netif.h"
 #include "esp_timer.h"
@@ -83,12 +84,15 @@ esp_err_t Api(httpd_req_t* r) {
         auto* j = cJSON_ParseWithLength(body.c_str(), body.size());
         if (!j)
             return Deny(r, "400 Bad Request", "Invalid JSON");
-        auto error = aura::Command(j, home);
+        auto action = cJSON_GetObjectItemCaseSensitive(j, "action");
+        auto error = cJSON_IsString(action) && !strcmp(action->valuestring, "appearance")
+                         ? aura::ApplyAppearance(j) : aura::Command(j, home);
         cJSON_Delete(j);
         if (error)
             return Deny(r, "400 Bad Request", error);
     }
     auto* state = aura::Snapshot(home);
+    aura::AddAppearance(state);
     char* raw = cJSON_PrintUnformatted(state);
     cJSON_Delete(state);
     if (!raw)
