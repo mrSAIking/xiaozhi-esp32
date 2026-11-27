@@ -11,6 +11,7 @@ class AvatarDisplay final : public LcdDisplay {
 public:
     AvatarDisplay();
     void SetupUI() override;
+    void SetTheme(Theme* theme) override;
     void SetHalfBody(bool half) { requested_mode_.store(half ? 1 : 0); }
     void SetWhite(bool value) { requested_white_.store(value); }
     void Volume(int percent);

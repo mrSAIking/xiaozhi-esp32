@@ -119,6 +119,18 @@ void AvatarDisplay::Volume(int percent) {
     volume_until_ = esp_timer_get_time() / 1000 + 1500;
 }
 
+void AvatarDisplay::SetTheme(Theme* theme) {
+    DisplayLockGuard guard(this);
+    LcdDisplay::SetTheme(theme);
+    // SetTextFont retains the old owner only through this virtual call.
+    // Rebind custom LVGL styles before that owner can be released.
+    if (theme && system_message_) {
+        auto font = theme->GetTextFont();
+        lv_obj_set_style_text_font(system_message_, font ? font->font() : LV_FONT_DEFAULT, 0);
+        lv_obj_set_style_text_font(notice_, font ? font->font() : LV_FONT_DEFAULT, 0);
+    }
+}
+
 void AvatarDisplay::SetStatus(const char* status) {
     DisplayLockGuard lock(this);
     recovery_ = status && std::strcmp(status, Lang::Strings::ERROR) == 0;
