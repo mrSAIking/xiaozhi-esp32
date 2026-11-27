@@ -10,12 +10,14 @@
 #include "esp_app_desc.h"
 #include "esp_crt_bundle.h"
 #include "esp_http_client.h"
+#include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_netif_sntp.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs.h"
+#include "provider_request.h"
 #include "psa/crypto.h"
 using std::string;
 
@@ -73,7 +75,14 @@ std::atomic<uint32_t> synchronized_at{0};
 bool ntp_running = false;
 std::atomic<bool> manual_complete{false};
 int64_t next_fetch = 0, last_update = 0;
-unsigned generation = 0;
+unsigned generation = 0, weather_calls = 0, clock_calls = 0;
+int weather_http = 0;
+time_t attempted = 0, clock_call_at = 0, weather_call_at = 0;
+string weather_error;
+time_t timestamp() {
+    auto t = time(nullptr);
+    return t > 1700000000 ? t : 0;
+}
 string cached, choices = "[]", status = "Weather is off";
 enum class Job { None, Search, Test, Fetch };
 struct Request {
@@ -224,57 +233,29 @@ string escape(const string& in) {
     }
     return out;
 }
-struct Body {
-    string text;
-    bool overflow = false;
-};
-Json fetch(const string& url, string& error) {
-    Body body;
-    esp_http_client_config_t c{};
-    c.url = url.c_str();
-    c.timeout_ms = 4500;
-    c.buffer_size = 1024;
-    c.buffer_size_tx = 512;
-    c.crt_bundle_attach = esp_crt_bundle_attach;
-    c.disable_auto_redirect = true;
-    c.user_data = &body;
-    c.event_handler = [](esp_http_client_event_t* e) -> esp_err_t {
-        auto& b = *static_cast<Body*>(e->user_data);
-        if (e->event_id == HTTP_EVENT_ON_DATA && e->data_len > 0) {
-            if (b.text.size() + e->data_len > 12288) {
-                b.overflow = true;
-                return ESP_FAIL;
-            }
-            if (!b.overflow)
-                b.text.append(static_cast<char*>(e->data), e->data_len);
-        }
-        return ESP_OK;
-    };
-    auto client = esp_http_client_init(&c);
-    auto err = client ? esp_http_client_perform(client) : ESP_FAIL;
-    int code = client ? esp_http_client_get_status_code(client) : 0;
-    if (client)
-        esp_http_client_cleanup(client);
-    if (err != ESP_OK || body.overflow || code != 200) {
+Json fetch(const string& url, string& error, int& code) {
+    string body;
+    if (!ProviderRequest(url, body, code)) {
         error = code == 401   ? "Invalid OpenWeather key"
                 : code == 429 ? "OpenWeather rate limit"
                 : code == 404 ? "Location unavailable"
-                              : "Weather network or service error";
+                : code <= 0   ? "Internet or TLS connection unavailable"
+                              : "OpenWeather service error";
         return parse("");
     }
-    auto j = parse(body.text);
+    auto j = parse(body);
     if (!j)
         error = "Invalid OpenWeather response";
     return j;
 }
-string lookup(Request r, string& results, string& weather) {
+string lookup(Request r, string& results, string& weather, int& code) {
     auto& c = r.settings;
     string error;
     if (r.type == Job::Search || !coord(c.lat, c.lon)) {
         auto locations = fetch("https://api.openweathermap.org/geo/1.0/direct?limit=5&q=" +
                                    escape(c.city + (c.country.empty() ? "" : "," + c.country)) +
                                    "&appid=" + escape(c.key),
-                               error);
+                               error, code);
         if (!locations)
             return error;
         Json list(cJSON_CreateArray(), cJSON_Delete);
@@ -302,7 +283,7 @@ string lookup(Request r, string& results, string& weather) {
     auto data =
         fetch("https://api.openweathermap.org/data/2.5/weather?lat=" + std::to_string(c.lat) +
                   "&lon=" + std::to_string(c.lon) + "&units=" + c.units + "&appid=" + escape(c.key),
-              error);
+              error, code);
     if (!data)
         return error;
     auto* main = field(data.get(), "main");
@@ -356,12 +337,20 @@ void process_weather() {
         status = r.type == Job::Search ? "Searching" : "Updating";
     }
     string results, weather;
-    auto msg = lookup(r, results, weather);
+    int code = 0;
+    auto msg = lookup(r, results, weather, code);
     std::lock_guard lock(mu);
     working = false;
     if (r.version != generation)
         return;
     status = msg;
+    attempted = timestamp();
+    weather_http = code;
+    const bool success = !weather.empty() || msg == "City search complete";
+    if (!success)
+        weather_error = msg;
+    ESP_LOGI("AuraServices", "OpenWeather request at=%lld http=%d success=%d", (long long)attempted,
+             code, success);
     if (!results.empty())
         choices = results;
     if (r.type == Job::Fetch) {
@@ -401,11 +390,17 @@ void Init() {
 }
 bool IsOnline() { return online.load(); }
 void Online(bool connected) {
-    online = connected;
+    const bool changed = online.exchange(connected) != connected;
     bool automatic;
     {
         std::lock_guard lock(mu);
         automatic = cfg.automatic;
+        if (changed) {
+            ++generation;
+            pending = {};
+            next_fetch = 0;
+            cached.clear();
+        }
     }
     sync(connected && automatic);
     if (connected && worker)
@@ -425,11 +420,21 @@ bool Authorized(const string& token) {
 }
 cJSON* Clock() {
     std::lock_guard lock(mu);
+    ++clock_calls;
+    clock_call_at = timestamp();
+    ESP_LOGI("AuraServices", "self.time.get_current SNTP at=%lld calls=%u synchronized=%d",
+             (long long)clock_call_at, clock_calls, synchronized_at.load() != 0);
     return clock_locked();
 }
 cJSON* Weather() {
     std::lock_guard lock(mu);
-    if (cfg.enabled && !cached.empty() && now() < next_fetch)
+    ++weather_calls;
+    weather_call_at = timestamp();
+    const bool available =
+        cfg.enabled && !cfg.key.empty() && online && !cached.empty() && now() < next_fetch;
+    ESP_LOGI("AuraServices", "self.weather.get_current OpenWeather at=%lld calls=%u available=%d",
+             (long long)weather_call_at, weather_calls, available);
+    if (available)
         return parse(cached).release();
     auto* j = cJSON_CreateObject();
     if (worker && cfg.enabled && online)
@@ -450,6 +455,16 @@ cJSON* Snapshot(bool home) {
     add(j, "firmware", esp_app_get_description()->version);
     add(j, "weather_status", status);
     number(j, "last_update", last_update);
+    cJSON_AddBoolToObject(j, "station_connected", online.load());
+    if (home) {
+        number(j, "weather_http", weather_http);
+        number(j, "weather_attempt", attempted);
+        number(j, "weather_calls", weather_calls);
+        number(j, "time_calls", clock_calls);
+        number(j, "time_call_at", clock_call_at);
+        number(j, "weather_call_at", weather_call_at);
+        add(j, "weather_error", weather_error);
+    }
     auto* list = cJSON_AddArrayToObject(j, "zones");
     for (auto z : zones)
         cJSON_AddItemToArray(list, cJSON_CreateString(z.name));
@@ -551,6 +566,9 @@ const char* Command(const cJSON* j, bool home) {
         cached.clear();
         choices = "[]";
         next_fetch = last_update = 0;
+        weather_error.clear();
+        weather_http = 0;
+        attempted = 0;
         status = !c.enabled       ? "Disabled"
                  : c.key.empty()  ? "API key required"
                  : c.city.empty() ? "City required"

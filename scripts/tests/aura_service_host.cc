@@ -2,6 +2,7 @@
 #include <cassert>
 #include <iostream>
 #include <thread>
+#include "aura_search.h"
 #include "aura_service.cc"
 using namespace aura;
 int main() {
@@ -40,8 +41,12 @@ int main() {
     assert(calls == 2 && urls[0].find("A%20%26%20B%2CIN") != std::string::npos);
     Json w(Weather(), cJSON_Delete);
     assert(num(w.get(), "humidity") == 80 && str(w.get(), "temperature_unit") == "C");
+    Online(false);
+    Json offline(Weather(), cJSON_Delete);
+    assert(!field(offline.get(), "temp") && str(offline.get(), "status") == "Offline");
+    Online(true);
     process_weather();
-    assert(calls == 2);
+    assert(calls == 4);
     mock_us += 721000000;
     reply_code = 401;
     process_weather();
@@ -88,6 +93,31 @@ int main() {
     http_resume.release();
     request.join();
     assert(cached.empty() && !cfg.enabled);
+    assert(!SearchAvailable() && !Search("fixture", true));
+    assert(!ConfigureSearch("test-key-one", 1));
+    assert(SearchAvailable());
+    Online(false);
+    int before = calls;
+    assert(!Search("fixture", true) && calls == before);
+    Online(true);
+    observation = R"({"results":[],"answer":"Test observation"})";
+    assert(Search("fixture", true) && auth == "Bearer test-key-one");
+    assert(urls.back() == "https://api.tavily.com/search");
+    assert(!ConfigureSearch("test-key-two", 1));
+    reply_code = 401;
+    assert(Search("fixture", true).error() == "Invalid Tavily key" &&
+           auth == "Bearer test-key-two");
+    reply_code = 429;
+    assert(Search("fixture", true).error() == "Tavily rate limit");
+    reply_code = 0;
+    assert(!Search("fixture", true));
+    before = calls;
+    assert(!ConfigureSearch(nullptr, 0) && !SearchAvailable() && !Search("fixture", true));
+    assert(!ConfigureSearch("", 1) && !SearchAvailable() && !Search("fixture", true) &&
+           calls == before);
+    Json searchState(cJSON_CreateObject(), cJSON_Delete);
+    SearchSnapshot(searchState.get(), true);
+    assert(serialize(searchState.get()).find("test-key") == std::string::npos);
     std::cout << "Service persistence, masking, pairing, geocoding, cache, failures, SNTP and DST "
                  "passed.\n";
 }

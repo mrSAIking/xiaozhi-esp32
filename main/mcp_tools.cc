@@ -10,6 +10,7 @@
 #include "application.h"
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
 #include "appearance.h"
+#include "aura_search.h"
 #endif
 #include "board.h"
 #include "display.h"
@@ -44,6 +45,11 @@ std::string LoadTavilyApiKey() {
 }
 
 ToolResult SearchTavily(const PropertyList& properties) {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    auto result=aura::Search(properties["query"].value<std::string>(),true);
+    if(!result)return std::unexpected(result.error());
+    return std::move(*result);
+#else
     auto key = LoadTavilyApiKey();
     if (key.empty()) {
         return std::unexpected("Tavily API key has been cleared");
@@ -94,6 +100,7 @@ ToolResult SearchTavily(const PropertyList& properties) {
         return std::unexpected(std::move(result.error()));
     }
     return std::move(*result);
+#endif
 }
 
 void SetTavilyToolEnabled(McpServer& server, bool enabled) {
@@ -113,6 +120,11 @@ void SetTavilyToolEnabled(McpServer& server, bool enabled) {
 bool McpTools::HasTavilyApiKey() { return !LoadTavilyApiKey().empty(); }
 
 esp_err_t McpTools::SaveTavilyApiKey(const std::string& key) {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    if(aura::ConfigureSearch(key.c_str(),-1))return ESP_FAIL;
+    RefreshTavily();
+    return ESP_OK;
+#else
     if (!IsValidTavilyApiKey(key)) {
         return ESP_ERR_INVALID_ARG;
     }
@@ -139,7 +151,15 @@ esp_err_t McpTools::SaveTavilyApiKey(const std::string& key) {
         SetTavilyToolEnabled(McpServer::GetInstance(), configured);
     }
     return result;
+#endif
 }
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+void McpTools::RefreshTavily(){
+    static std::mutex refresh;
+    std::lock_guard lock(refresh);
+    SetTavilyToolEnabled(McpServer::GetInstance(),aura::SearchAvailable());
+}
+#endif
 
 void McpServer::AddCommonTools() {
     // *Important* To speed up the response time, we add the common tools to the beginning of
@@ -249,9 +269,13 @@ void McpServer::AddCommonTools() {
     }
 #endif
 
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    McpTools::RefreshTavily();
+#else
     if (McpTools::HasTavilyApiKey()) {
         SetTavilyToolEnabled(*this, true);
     }
+#endif
 
     // Restore the original tools list to the end of the tools list
     std::lock_guard lock(tools_mutex_);

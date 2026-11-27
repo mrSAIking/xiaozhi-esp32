@@ -73,3 +73,24 @@ Open **Animation** on the setup hotspot or sign in on the home network. Moving a
 Breathing supports 2.0–8.0 seconds per cycle and defaults to 3.6 seconds. The hand control covers 2.0–10.0 seconds and shows the effective periods of both arms (4.0 and 4.5 seconds by default). Strength scales the board's safe displacement from zero to 100 percent. The renderer preserves phase on speed changes and eases disabled motion back to neutral.
 
 The preview artifact includes desktop and mobile screenshots taken with a browser fixture. The full-body and half-body GIFs show the default settings. Additional GIFs show each motion disabled, the two breathing speed extremes, and a speed change four seconds into playback.
+
+## External service policy and verification
+
+The setup hotspot stops the normal station before starting provisioning. Its network scan and credential checks do not provide a persistent internet route for applications. Save OpenWeather settings in the hotspot and use the test and geocoding controls once Aura joins home Wi-Fi. A station connection establishes local reachability. Only a successful provider response verifies a provider credential.
+
+| Device tool | Source and availability |
+| --- | --- |
+| `self.weather.get_current` | OpenWeather direct geocoding and current observations for the saved city. The worker fetches on connection, keeps a validated observation for up to 12 minutes and retries failed refreshes after 90 seconds. Station loss or changed configuration invalidates the observation. |
+| `self.tavily.web_search` | Tavily Search with the locally saved Bearer key. Both the portal test and MCP call use the same TLS client and response validator. Disabling or clearing search removes the local tool and its request-time authorization. |
+| `self.time.get_current` | The device clock reports its synchronization state. No wall-clock value is returned before an SNTP update. |
+| Music | No provider configured and no local playback tool registered. Conversation and synthesized audio still use Xiaozhi. |
+
+Under **Web Search**, leave the password field empty to keep the stored key. **Clear key** marks it for removal on Save. Advanced and Web Search share the existing NVS key. Authenticated **External Services** diagnostics report tool invocations, HTTP status and request times. A missing wall-clock timestamp means the device had no synchronized time for that event. Counters and diagnostics restart on boot.
+
+### Xiaozhi cloud control
+
+The device answers MCP discovery and tool calls. Its catalog describes device tools. Modern catalog replies advertise a private 60-second TTL. Configuration changes update the local catalog immediately and the request handler checks the current configuration even for an already discovered tool. Client refresh timing depends on the backend.
+
+The published protocol documents no device field for a cloud tool allowlist, service priority or disabling independent server fallback. No verified xiaozhi.me console procedure for enforcing these per-device restrictions was found. Agent instructions alone cannot establish an execution policy. A deployment that requires an enforceable allowlist needs an operator-controlled backend or a hosted service that guarantees that policy. Restrict the server's tool dispatcher to the intended device tools and disable independent weather, search and music integrations there.
+
+See the [official MCP protocol](https://github.com/78/xiaozhi-esp32/blob/main/docs/mcp-protocol.md), [Tavily Search](https://docs.tavily.com/documentation/api-reference/endpoint/search), [OpenWeather geocoding](https://openweathermap.org/api/geocoding-api) and [current weather API](https://openweathermap.org/current).

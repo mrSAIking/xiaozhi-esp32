@@ -6,6 +6,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 SDK = r'''
 #pragma once
+#include <cassert>
+#include <map>
 #include <semaphore>
 #include <string>
 #include <vector>
@@ -19,13 +21,20 @@ inline auto esp_timer_get_time(){return mock_us;}
 using TaskHandle_t=void*;
 inline int xTaskCreate(void(*)(void*),const char*,int,void*,int,TaskHandle_t* h){*h=(void*)1;return 1;}
 inline int pdMS_TO_TICKS(int x){return x;}
+inline void vTaskDelete(void*){}
 inline void ulTaskNotifyTake(int,int){} inline void xTaskNotifyGive(void*){}
 inline std::string saved;using nvs_handle_t=int;
 constexpr int NVS_READWRITE=1,NVS_READONLY=0;
 inline int nvs_open(const char*,int,int*h){*h=1;return 0;}inline void nvs_close(int){}
 inline int nvs_commit(int){return 0;}
-inline int nvs_set_str(int,const char*,const char*s){saved=s;return 0;}
-inline int nvs_get_str(int,const char*,char* p,size_t*n){if(saved.empty())return -1;if(p)memcpy(p,saved.c_str(),saved.size()+1);*n=saved.size()+1;return 0;}
+inline std::map<std::string,std::string> strings;
+inline std::map<std::string,uint8_t> flags;
+constexpr int ESP_ERR_NVS_NOT_FOUND=2;
+inline int nvs_set_u8(int,const char*k,uint8_t v){flags[k]=v;return 0;}
+inline int nvs_get_u8(int,const char*k,uint8_t*v){if(!flags.count(k))return 2;*v=flags[k];return 0;}
+inline int nvs_erase_key(int,const char*k){return strings.erase(k)?0:2;}
+inline int nvs_set_str(int,const char*k,const char*s){strings[k]=s;return 0;}
+inline int nvs_get_str(int,const char*k,char* p,size_t*n){auto saved=strings[k];if(saved.empty()||(p && *n<saved.size()+1))return -1;if(p)memcpy(p,saved.c_str(),saved.size()+1);*n=saved.size()+1;return 0;}
 struct esp_sntp_config_t{int num_of_servers;const char* servers[2];void(*sync_cb)(timeval*);};
 #define ESP_NETIF_SNTP_DEFAULT_CONFIG(s) {1,{s,nullptr},nullptr}
 inline void(*sync_callback)(timeval*);
@@ -38,7 +47,13 @@ inline int calls=0,reply_code=200;inline std::vector<std::string> urls;
 inline std::string geocode,observation;
 inline void esp_crt_bundle_attach(){}
 inline auto esp_http_client_init(esp_http_client_config_t*c){return c;}
-inline int esp_http_client_perform(esp_http_client_config_t*c){if(pause_http){pause_http=false;http_entered.release();http_resume.acquire();}calls++;urls.emplace_back(c->url);auto& s=urls.back().find("/direct")!=std::string::npos?geocode:observation;esp_http_client_event_t e{1,c->user_data,(int)s.size(),s.data()};return c->event_handler(&e);}
+constexpr int HTTP_METHOD_POST=1;
+inline int esp_http_client_set_method(esp_http_client_config_t*,int){return 0;}
+inline std::string auth;
+inline int esp_http_client_set_header(esp_http_client_config_t*,const char*k,const char*v){if(std::string(k)=="Authorization")auth=v;return 0;}
+inline int esp_http_client_set_post_field(esp_http_client_config_t*,const char*,int){return 0;}
+#define ESP_LOGI(...)
+inline int esp_http_client_perform(esp_http_client_config_t*c){assert(c->crt_bundle_attach==esp_crt_bundle_attach && c->disable_auto_redirect);if(pause_http){pause_http=false;http_entered.release();http_resume.acquire();}calls++;urls.emplace_back(c->url);auto& s=urls.back().find("/direct")!=std::string::npos?geocode:observation;esp_http_client_event_t e{1,c->user_data,(int)s.size(),s.data()};return c->event_handler(&e);}
 inline int esp_http_client_get_status_code(void*){return reply_code;}
 inline void esp_http_client_cleanup(void*){}
 inline void psa_crypto_init(){}
@@ -54,13 +69,13 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         d = Path(tmp)
         (d/'sdk.h').write_text(SDK)
-        for name in ('esp_app_desc esp_crt_bundle esp_http_client esp_netif_sntp esp_netif esp_timer freertos/FreeRTOS freertos/task nvs psa/crypto').split():
+        for name in ('esp_log esp_app_desc esp_crt_bundle esp_http_client esp_netif_sntp esp_netif esp_timer freertos/FreeRTOS freertos/task nvs psa/crypto').split():
             h = d/(name+'.h')
             h.parent.mkdir(exist_ok=True)
             h.write_text('#include "sdk.h"')
         subprocess.run(['gcc','-c',cjson,'-o',d/'json.o'],check=True)
-        subprocess.run(['g++','-std=c++20','-pthread','-I'+str(d),'-I'+str(cjson.parent),
-                        '-I'+str(ROOT/'main/boards/anime-companion-s3'),ROOT/'scripts/tests/aura_service_host.cc',d/'json.o','-o',d/'check'],check=True)
+        subprocess.run(['g++','-std=c++23','-I'+str(ROOT/'main'),'-pthread','-I'+str(d),'-I'+str(cjson.parent),
+                        '-I'+str(ROOT/'main/boards/anime-companion-s3'),ROOT/'scripts/tests/aura_service_host.cc',ROOT/'main/boards/anime-companion-s3/aura_search.cc',d/'json.o','-o',d/'check'],check=True)
         subprocess.run([d/'check'],check=True)
 if __name__=='__main__':
     main()

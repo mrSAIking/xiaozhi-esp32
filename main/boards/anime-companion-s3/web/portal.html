@@ -32,7 +32,7 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
       <aside>
         <img class="brand" src="/aura-logo.webp" alt="Project Aura" />
         <button id="mobileNav" class="btn menuButton" aria-expanded="false" aria-controls="nav"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18 M3 12h18 M3 18h18"/></svg> Menu</button>
-<nav id="nav" class="nav" aria-label="Device settings"><button data-page="overview"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3h7v8H3z M14 3h7v5h-7z M3 15h7v6H3z M14 12h7v9h-7z"/></svg>Overview</button><button data-page="appearance"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h16v16H4z M4 16l5-5 4 4 3-3 4 4 M15 8h.1"/></svg>Appearance</button><button data-page="animation"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12h4l3-8 5 16 3-8h5"/></svg>Animation</button><button data-page="audio"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 9h4l5-5v16l-5-5H3z M16 8q4 4 0 8 M19 5q7 7 0 14"/></svg>Audio</button><button data-page="wifi"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M2 8q10-9 20 0 M5 12q7-6 14 0 M8 16q4-4 8 0 M12 20h.1"/></svg>Wi-Fi</button><button data-page="weather"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1 0-8 6 6 0 0 1 11-1 4.5 4.5 0 0 1 0 9z"/></svg>Weather</button><button data-page="time"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 .01 0 M12 7v6l4 2"/></svg>Date &amp; Time</button><button data-page="advanced"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 7h6m4 0h8 M3 17h10m4 0h4 M9 4h4v6H9z M13 14h4v6h-4z"/></svg>Advanced</button></nav><span id="connection" class="status">Connecting</span>
+<nav id="nav" class="nav" aria-label="Device settings"><button data-page="overview"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3h7v8H3z M14 3h7v5h-7z M3 15h7v6H3z M14 12h7v9h-7z"/></svg>Overview</button><button data-page="appearance"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h16v16H4z M4 16l5-5 4 4 3-3 4 4 M15 8h.1"/></svg>Appearance</button><button data-page="animation"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12h4l3-8 5 16 3-8h5"/></svg>Animation</button><button data-page="audio"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 9h4l5-5v16l-5-5H3z M16 8q4 4 0 8 M19 5q7 7 0 14"/></svg>Audio</button><button data-page="wifi"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M2 8q10-9 20 0 M5 12q7-6 14 0 M8 16q4-4 8 0 M12 20h.1"/></svg>Wi-Fi</button><button data-page="services"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 5h18v5H3z M3 14h18v5H3z M6 7h2 M6 16h2"/></svg>External Services</button><button data-page="webSearch"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M15 15l6 6 M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0"/></svg>Web Search</button><button data-page="weather"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1 0-8 6 6 0 0 1 11-1 4.5 4.5 0 0 1 0 9z"/></svg>Weather</button><button data-page="time"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 .01 0 M12 7v6l4 2"/></svg>Date &amp; Time</button><button data-page="advanced"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 7h6m4 0h8 M3 17h10m4 0h4 M9 4h4v6H9z M13 14h4v6h-4z"/></svg>Advanced</button></nav><span id="connection" class="status">Connecting</span>
       </aside>
       <main class="pane">
         <div class="top">
@@ -69,8 +69,21 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
             <p>Open the setup hotspot to scan or change saved networks.</p>
           </div>
         </section>
+        <section id="services" hidden>
+          <article class="box"><h2>Local Services Only</h2><p>Device tools use your configured providers. Cloud-side restrictions are unverified.</p>
+          <dl id="providerList"></dl></article>
+          <article class="box" id="serviceLog"><h2>Device diagnostics</h2><dl id="diagnosticList"></dl></article>
+        </section>
+        <section id="webSearch" class="box" hidden><h2>Tavily web search</h2>
+          <label><input id="searchOn" type="checkbox"> Enable Tavily</label>
+          <label for="searchKey">API key</label><div class="row"><input id="searchKey" type="password" autocomplete="new-password" maxlength="128"><button class="btn" id="removeSearchKey">Clear key</button></div>
+          <div class="row actions"><button class="btn primary" id="saveSearch">Save settings</button></div>
+          <label for="query">Test search</label><input id="query" maxlength="400" placeholder="Enter a question (optional)">
+          <button id="testSearch" class="btn">Test saved connection</button>
+          <p id="searchHint"></p><dl><div><dt>Connection status</dt><dd id="searchState"></dd></div><div><dt>Last successful request</dt><dd id="searchSuccess"></dd></div></dl>
+        </section>
         <section id="weather" hidden class="box">
-          <h2>Current weather</h2>
+          <h2>OpenWeather</h2><p id="weatherHint"></p>
           <label
             ><input type="checkbox" id="enabled" /> Enable OpenWeather</label
           ><label for="key">API key</label>
@@ -184,7 +197,7 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
         pages = [
           "overview",
           "wifi",
-          "weather",
+          "services","webSearch","weather",
           "time",
           "appearance",
           "animation",
@@ -377,8 +390,45 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
         $("clockCard").textContent=$("clockNow").textContent=time;
       }
       setInterval(tickClock,500);
+      let removingSearchKey=false;
+      $("webSearch").addEventListener("input",()=>edited.add("tavily"));
+      $("searchKey").oninput=()=>{removingSearchKey=false;};
+      $("removeSearchKey").onclick=()=>{edited.add("tavily");removingSearchKey=true;$("searchKey").value="";
+        $("searchKey").placeholder="Removal pending · save settings";};
+      $("saveSearch").onclick=()=>{const key=$("searchKey").value.trim();
+        act($("saveSearch"),{action:"tavily",enabled:$("searchOn").checked,...(key||removingSearchKey?{key}: {})},true);};
+      $("testSearch").onclick=()=>act($("testSearch"),{action:"test_tavily",query:$("query").value.trim()||"Tavily search"});
+      function rows(id,items){
+        $(id).replaceChildren(...items.map(([name,value])=>{
+          const row=document.createElement("div"), k=document.createElement("dt"),v=document.createElement("dd");
+          k.textContent=name;v.textContent=value;row.append(k,v);return row;
+        }));
+      }
+      function services(s,fill){
+        const t=s.tavily || {}, wifi=s.station_connected && s.home;
+        const savedTime=n=>n?stamp(n):"No synchronized timestamp";
+        $("weatherHint").textContent=wifi?"Home Wi-Fi connected. Tests contact OpenWeather directly.":"Setup hotspot active. Save settings here. Aura checks enabled weather on home Wi-Fi.";
+        $("searchHint").textContent=wifi?"Tests use the saved Tavily key and consume a search request.":"Save your settings here. Testing is available on home Wi-Fi.";
+        $("test").disabled=$("search").disabled=!wifi;
+        $("testSearch").disabled=!wifi || !t.enabled || !t.key_saved;
+        $("searchState").textContent=t.status || "Untested";$("searchSuccess").textContent=savedTime(t.last_success);
+        if(fill===true || !edited.has("tavily")){
+          $("searchOn").checked=t.enabled;$("searchKey").value="";removingSearchKey=false;
+          $("searchKey").placeholder=t.key_saved?"•••••••• (saved)":"Tavily API key";
+        }
+        rows("providerList",[["OpenWeather", (s.enabled?"Enabled":"Disabled")+" · "+s.weather_status],
+          ["Tavily",(t.enabled?"Enabled":"Disabled")+" · "+(t.status||"Untested")],
+          ["Device clock · SNTP",s.clock.synchronized?"Synchronized":"Awaiting synchronization"],["Music","Unavailable · no local provider"]]);
+        $("serviceLog").hidden=!s.home;
+        if(s.home)rows("diagnosticList",[["OpenWeather · last success",savedTime(s.last_update)],["Last request",savedTime(s.weather_attempt)+" · HTTP "+(s.weather_http||"—")],
+          ["self.weather.get_current",(s.weather_calls||0)+" calls · "+savedTime(s.weather_call_at)],["Latest weather error",s.weather_error||"None recorded"],
+          ["Tavily · last success",savedTime(t.last_success)],["Last request",savedTime(t.attempt)+" · HTTP "+(t.http||"—")],
+          ["self.tavily.web_search",(t.calls||0)+" calls"],["Latest search error",t.error||"None recorded"],
+          ["self.time.get_current",(s.time_calls||0)+" calls · "+savedTime(s.time_call_at)]]);
+      }
       function render(s, fill) {
         state = s;
+        services(s,fill);
         $("returnAura").hidden=s.home;
         if (!dirtyControls.has("white")) $(s.white?"bgwhite":"bgblack").checked=true;
         if (!dirtyControls.has("half")) $("bodyMode").value=s.half?"half":"full";
@@ -534,9 +584,10 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
           if (fill) edited.delete(payload.action);
           render(saved, false);
           message(
-            ["test", "search", "sync"].includes(payload.action)
+            ["test", "search", "test_tavily", "sync"].includes(payload.action)
               ? "Request submitted. Check service status for the result."
-              : "Settings saved.",
+              : payload.action==="weather" && !saved.station_connected && saved.enabled
+              ? "Settings saved. Weather will be verified when Aura connects to the internet." : "Settings saved.",
           );
         } catch (e) {
           message(e.message, true);

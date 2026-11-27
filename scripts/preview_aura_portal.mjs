@@ -24,6 +24,7 @@ const snapshot = {
   ip: "192.168.4.1",
   clock: { synchronized: false },
   cities: [],
+  tavily:{enabled:true,key_saved:false,status:"API key required",last_success:0},station_connected:false,
   weather_status: "Waiting for home Wi-Fi",
 };
 let home = false, disconnected = false, persisted={...snapshot.animation}, saves=0;
@@ -165,7 +166,7 @@ try {
     assert.ok(
       await evaluate("document.documentElement.scrollWidth<=innerWidth"),
     );
-    for(const id of ["overview","animation","appearance","audio","wifi","weather","time","advanced"]){
+    for(const id of ["overview","animation","appearance","audio","wifi","weather","webSearch","services","time","advanced"]){
       await evaluate("page("+JSON.stringify(id)+")");
       if(id==="wifi" || id==="advanced") await until("$('legacy').contentDocument?.getElementById('ssid')!=null");
       await pause(160);
@@ -191,7 +192,9 @@ try {
   await evaluate("page('weather');$('key').value='new';$('reveal').click();");
   assert.equal(await evaluate("$('key').type"), "text");
   await evaluate("$('clear').click();$('test').click()");
-  await until("$('feedback').textContent.startsWith('Offline')");
+  assert.equal(await evaluate("$('test').disabled && $('weatherHint').textContent.includes('hotspot')"),true);
+  await evaluate("page('webSearch')");
+  assert.equal(await evaluate("$('testSearch').disabled"),true);
   await evaluate(
     "page('time');$('zone').value='Europe/London';$('saveTime').click()",
   );

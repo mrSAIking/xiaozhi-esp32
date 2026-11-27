@@ -9,6 +9,7 @@ namespace McpTools {
 
 inline constexpr std::size_t kTavilyApiKeyMaxLength = 128;
 
+void RefreshTavily();
 bool HasTavilyApiKey();
 esp_err_t SaveTavilyApiKey(const std::string& key);
 

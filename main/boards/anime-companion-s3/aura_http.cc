@@ -2,12 +2,14 @@
 #include <cstring>
 #include <mutex>
 #include "appearance.h"
+#include "aura_search.h"
 #include "aura_service.h"
 #include "esp_http_server.h"
 #include "esp_netif.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
 #include "lwip/sockets.h"
+#include "mcp_tools.h"
 #include "mdns.h"
 
 extern const uint8_t aura_html[] asm("_binary_aura_portal_html_gz_start");
@@ -93,9 +95,14 @@ esp_err_t Api(httpd_req_t* r) {
                 error = "Invalid speaker volume";
             else
                 aura::SetSpeakerVolume(volume->valueint);
-        } else if (cJSON_IsString(action) && (!strcmp(action->valuestring,"animation") ||
-                   !strcmp(action->valuestring,"preview_animation"))) {
-            error=aura::ApplyAnimation(j,!strcmp(action->valuestring,"animation"));
+        } else if (cJSON_IsString(action) && (!strcmp(action->valuestring, "tavily") ||
+                                              !strcmp(action->valuestring, "test_tavily"))) {
+            error = aura::SearchCommand(j, home);
+            if (!error && !strcmp(action->valuestring, "tavily"))
+                McpTools::RefreshTavily();
+        } else if (cJSON_IsString(action) && (!strcmp(action->valuestring, "animation") ||
+                                              !strcmp(action->valuestring, "preview_animation"))) {
+            error = aura::ApplyAnimation(j, !strcmp(action->valuestring, "animation"));
         } else if (cJSON_IsString(action) && !strcmp(action->valuestring, "appearance"))
             error = aura::ApplyAppearance(j);
         else
@@ -106,6 +113,7 @@ esp_err_t Api(httpd_req_t* r) {
     }
     auto* state = aura::Snapshot(home);
     aura::AddAppearance(state);
+    aura::SearchSnapshot(state, home);
     char* raw = cJSON_PrintUnformatted(state);
     cJSON_Delete(state);
     if (!raw)
