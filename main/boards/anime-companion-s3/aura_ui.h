@@ -148,6 +148,8 @@ public:
     }
     int X() const { return x_; }
     void FontChanged() { ++revision; }
+    bool QuestionLeaving() const { return !assistant && fade_ >= 0; }
+    int StripOpacity(int64_t now) const { return QuestionLeaving() ? fade_alpha_ : Opacity(now); }
     int Opacity(int64_t now) const {
         if (!Visible())
             return 0;

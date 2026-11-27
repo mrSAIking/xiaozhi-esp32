@@ -68,7 +68,7 @@ private:
     aura::Captions captions_;
     std::mutex captions_mutex_;
     unsigned caption_revision_ = 0;
-    int opacity_ = -1, caption_x_ = 0;
+    int opacity_ = -1, ink_opacity_ = -1, caption_x_ = 0;
     bool listening_ = false;
     int region_ = 0;
     avatar::Pose pose_{};

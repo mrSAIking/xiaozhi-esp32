@@ -376,7 +376,7 @@ void AvatarDisplay::UpdateOverlays(int64_t ms, bool listening, bool active) {
         else
             lv_obj_add_flag(dot_, LV_OBJ_FLAG_HIDDEN);
     }
-    int alpha;
+    int alpha, ink;
     int x;
     bool visible, font_changed = false;
     auto font = GetTheme() ? GetTheme()->GetTextFont() : nullptr;
@@ -415,8 +415,13 @@ void AvatarDisplay::UpdateOverlays(int64_t ms, bool listening, bool active) {
         }
         if (!visible)
             return;
-        alpha = captions_.Opacity(ms);
+        alpha = captions_.StripOpacity(ms);
+        ink = captions_.QuestionLeaving() && alpha ? 255 * captions_.Opacity(ms) / alpha : 255;
         x = captions_.X() - 10;
+    }
+    if (ink != ink_opacity_) {
+        lv_obj_set_style_text_opa(caption_label_, ink, 0);
+        ink_opacity_ = ink;
     }
     if (alpha != opacity_) {
         lv_obj_set_style_opa(caption_bar_, alpha, 0);

@@ -10,6 +10,8 @@ int main() {
     assert(c.text == "Question?" && c.X() > 10 && c.Opacity(15000) == 255);
     c.Submit(true, "First.", 15000);
     tick(15000, true);
+    tick(15120, true);
+    assert(c.QuestionLeaving() && c.StripOpacity(15120) == 255 && c.Opacity(15120) < 255);
     tick(15300, true);
     tick(16300, true);
     const int before = c.X();

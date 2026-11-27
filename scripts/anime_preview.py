@@ -45,15 +45,17 @@ def subtitles(exe, motion, target):
             poses.append(gif.convert("RGB"))
     frames = []
     for row in trace.splitlines():
-        ms, x, opacity, answer, line = row.split("\t", 4)
+        ms, x, opacity, ink, answer, line = row.split("\t", 5)
         im = poses[(int(ms)//80) % len(poses)].copy()
         if int(opacity):
             area = im.crop((0,438,320,480))
             strip = Image.new("RGB",area.size,"#101012")
             draw = ImageDraw.Draw(strip)
+            fg=(255,255,255) if answer=="1" else (168,199,250)
+            color=tuple(bg+round((v-bg)*int(ink)/int(opacity)) for bg,v in zip((16,16,18),fg))
             for i,char in enumerate(line):
                 draw.text((int(x)+i*advance,21),char,font=font,anchor="lm",
-                          fill="white" if answer=="1" else "#a8c7fa")
+                          fill=color)
             draw.rectangle((0,0,9,41),fill="#101012")
             draw.rectangle((310,0,319,41),fill="#101012")
             im.paste(Image.blend(area,strip,int(opacity)/255),(0,438))

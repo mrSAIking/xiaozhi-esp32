@@ -32,8 +32,8 @@ int main(int argc, char** argv) {
                 track.Finish();
             track.Tick(ms, ms >= 1600 && ms < 8800,
                        [advance](const char*, size_t n) { return int(n * advance + 0.5); });
-            std::cout << ms << '\t' << track.X() << '\t' << track.Opacity(ms) << '\t'
-                      << track.assistant << '\t' << track.text << '\n';
+            std::cout << ms << '\t' << track.X() << '\t' << track.StripOpacity(ms) << '\t'
+                      << track.Opacity(ms) << '\t' << track.assistant << '\t' << track.text << '\n';
             if (ms > 9000 && track.text.empty())
                 return 0;
         }
