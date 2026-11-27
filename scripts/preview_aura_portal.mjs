@@ -25,7 +25,7 @@ const snapshot = {
   clock: { synchronized: false },
   cities: [],
   tavily:{enabled:true,key_saved:false,status:"API key required",last_success:0},station_connected:false,
-  weather_status: "Waiting for home Wi-Fi",
+  weather_status: "Disabled",
 };
 let home = false, disconnected = false, persisted={...snapshot.animation}, saves=0;
 const server = createServer(async (req, res) => {
@@ -48,6 +48,12 @@ const server = createServer(async (req, res) => {
         if(action==="animation"){persisted={...settings};saves++;}
         snapshot.animation_saved=JSON.stringify(settings)===JSON.stringify(persisted);
       }
+      if (p.action === "tavily"){
+        snapshot.tavily.enabled=p.enabled;
+        if("key" in p)snapshot.tavily.key_saved=!!p.key;
+        snapshot.tavily.status=!p.enabled?"Disabled":snapshot.tavily.key_saved?"Untested":"API key required";
+      }
+      if(p.action==="test_tavily")snapshot.tavily.status="Operational";
       if (p.action === "time") {
         snapshot.zone = p.zone;
         snapshot.h24 = p.h24;
@@ -215,11 +221,27 @@ try {
   await evaluate("page('animation');$('hand_pct').value=17;$('hand_pct').oninput()");
   await until("state.animation.hand_pct===17 && !state.animation_saved");
   snapshot.animation={...persisted}; snapshot.animation_saved=true;
-  home = true;
+  home = true; snapshot.station_connected=true;
   await call("Page.navigate", { url });
   await until("document.getElementById('login')?.hidden===false");
   await evaluate("$('access').value='demo';$('unlock').click()");
   await until("state?.home===true");
+  await evaluate("page('webSearch');$('searchKey').value='fixture-only';$('saveSearch').click()");
+  await until("state.tavily.key_saved && $('searchKey').value===''");
+  assert.equal(await evaluate("JSON.stringify(state).includes('fixture-only')"),false);
+  await evaluate("$('testSearch').click()");
+  await until("state.tavily.status==='Operational'");
+  await evaluate("page('services')");
+  assert.equal(await evaluate("$('serviceLog').hidden"),false);
+  for(const [device,width,height] of [["mobile",412,915],["desktop",1360,960]]){
+    await call("Emulation.setDeviceMetricsOverride",{width,height,deviceScaleFactor:1,mobile:device==="mobile"});
+    const metrics=await call("Page.getLayoutMetrics");
+    const shot=await call("Page.captureScreenshot",{format:"png",captureBeyondViewport:true,
+      clip:{x:0,y:0,width,height:Math.max(height,metrics.cssContentSize.height),scale:1}});
+    await writeFile(web+device+"-home-services-preview.png",Buffer.from(shot.data,"base64"));
+  }
+  await evaluate("page('webSearch');$('removeSearchKey').click();$('saveSearch').click()");
+  await until("!state.tavily.key_saved && $('testSearch').disabled");
   await evaluate("page('animation')");
   assert.equal(await evaluate("Number($('breath_ds').value)"),24);
   assert.equal(await evaluate("Number($('hand_pct').value)"),100);

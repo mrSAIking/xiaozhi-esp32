@@ -121,6 +121,7 @@ bool McpTools::HasTavilyApiKey() { return !LoadTavilyApiKey().empty(); }
 
 esp_err_t McpTools::SaveTavilyApiKey(const std::string& key) {
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    if (!IsValidTavilyApiKey(key)) return ESP_ERR_INVALID_ARG;
     if(aura::ConfigureSearch(key.c_str(),-1))return ESP_FAIL;
     RefreshTavily();
     return ESP_OK;

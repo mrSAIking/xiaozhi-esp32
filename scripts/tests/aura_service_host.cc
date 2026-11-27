@@ -60,6 +60,15 @@ int main() {
     mock_us += 91000000;
     process_weather();
     assert(status == "No matching city");
+    geocode = R"([{"name":"A","lat":10,"lon":20},{"name":"A","lat":11,"lon":20}])";
+    mock_us += 91000000;
+    process_weather();
+    assert(status.starts_with("Multiple cities") && cached.empty());
+    reply_code = 0;
+    mock_us += 91000000;
+    process_weather();
+    assert(status == "Internet or TLS connection unavailable" && IsOnline());
+    reply_code = 200;
     assert(!cmd(R"({"action":"time","zone":"America/New_York","h24":true,"automatic":false})"));
     for (auto [stamp, offset] :
          {std::pair<time_t, const char*>{1704067200, "-0500"}, {1719792000, "-0400"}}) {

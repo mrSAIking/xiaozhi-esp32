@@ -420,7 +420,7 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
           ["Tavily",(t.enabled?"Enabled":"Disabled")+" · "+(t.status||"Untested")],
           ["Device clock · SNTP",s.clock.synchronized?"Synchronized":"Awaiting synchronization"],["Music","Unavailable · no local provider"]]);
         $("serviceLog").hidden=!s.home;
-        if(s.home)rows("diagnosticList",[["OpenWeather · last success",savedTime(s.last_update)],["Last request",savedTime(s.weather_attempt)+" · HTTP "+(s.weather_http||"—")],
+        if(s.home)rows("diagnosticList",[["OpenWeather · last success",savedTime(s.weather_success)],["Last request",savedTime(s.weather_attempt)+" · HTTP "+(s.weather_http||"—")],
           ["self.weather.get_current",(s.weather_calls||0)+" calls · "+savedTime(s.weather_call_at)],["Latest weather error",s.weather_error||"None recorded"],
           ["Tavily · last success",savedTime(t.last_success)],["Last request",savedTime(t.attempt)+" · HTTP "+(t.http||"—")],
           ["self.tavily.web_search",(t.calls||0)+" calls"],["Latest search error",t.error||"None recorded"],

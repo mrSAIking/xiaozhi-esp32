@@ -76,6 +76,7 @@ bool ntp_running = false;
 std::atomic<bool> manual_complete{false};
 int64_t next_fetch = 0, last_update = 0;
 unsigned generation = 0, weather_calls = 0, clock_calls = 0;
+time_t provider_success = 0;
 int weather_http = 0;
 time_t attempted = 0, clock_call_at = 0, weather_call_at = 0;
 string weather_error;
@@ -338,16 +339,19 @@ void process_weather() {
     }
     string results, weather;
     int code = 0;
+    const auto started = timestamp();
     auto msg = lookup(r, results, weather, code);
     std::lock_guard lock(mu);
     working = false;
     if (r.version != generation)
         return;
     status = msg;
-    attempted = timestamp();
+    attempted = started;
     weather_http = code;
     const bool success = !weather.empty() || msg == "City search complete";
-    if (!success)
+    if (success)
+        provider_success = timestamp();
+    else
         weather_error = msg;
     ESP_LOGI("AuraServices", "OpenWeather request at=%lld http=%d success=%d", (long long)attempted,
              code, success);
@@ -453,11 +457,18 @@ cJSON* Snapshot(bool home) {
     cJSON_AddBoolToObject(j, "key_saved", !cfg.key.empty());
     cJSON_AddBoolToObject(j, "paired", !cfg.verifier.empty());
     add(j, "firmware", esp_app_get_description()->version);
-    add(j, "weather_status", status);
+    add(j, "weather_status",
+        !cfg.enabled       ? "Disabled"
+        : cfg.key.empty()  ? "API key required"
+        : cfg.city.empty() ? "City required"
+        : !online          ? "Waiting for home Wi-Fi"
+                           : status);
+
     number(j, "last_update", last_update);
     cJSON_AddBoolToObject(j, "station_connected", online.load());
     if (home) {
         number(j, "weather_http", weather_http);
+        number(j, "weather_success", provider_success);
         number(j, "weather_attempt", attempted);
         number(j, "weather_calls", weather_calls);
         number(j, "time_calls", clock_calls);
@@ -565,7 +576,7 @@ const char* Command(const cJSON* j, bool home) {
         pending = {};
         cached.clear();
         choices = "[]";
-        next_fetch = last_update = 0;
+        next_fetch = last_update = provider_success = 0;
         weather_error.clear();
         weather_http = 0;
         attempted = 0;
