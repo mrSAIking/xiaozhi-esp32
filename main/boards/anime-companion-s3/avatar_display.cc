@@ -396,8 +396,8 @@ void AvatarDisplay::UpdateOverlays(int64_t ms, bool listening, bool active) {
                 prefix.assign(str, bytes);
                 str = prefix.c_str();
             }
-            lv_text_get_size(&size, str, lv_obj_get_style_text_font(caption_label_, 0),
-                             lv_obj_get_style_text_letter_space(caption_label_, 0), 0, LV_COORD_MAX,
+            lv_text_get_size(&size, str, lv_obj_get_style_text_font(caption_label_, LV_PART_MAIN),
+                             lv_obj_get_style_text_letter_space(caption_label_, LV_PART_MAIN), 0, LV_COORD_MAX,
                              LV_TEXT_FLAG_NONE);
             return size.x;
         });
