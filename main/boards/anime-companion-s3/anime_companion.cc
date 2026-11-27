@@ -1,12 +1,12 @@
+#include "appearance.h"
 #include "application.h"
 #include "assets/lang_config.h"
 #include "aura_service.h"
 #include "avatar_display.h"
 #include "button.h"
 #include "control_button.h"
-#include "appearance.h"
 #include "wifi_manager.h"
-#include "ssid_manager.h"
+
 #include <cmath>
 #include "codecs/no_audio_codec.h"
 #include "config.h"
@@ -83,12 +83,13 @@ public:
                             ? ESP_OK
                             : ESP_ERR_NO_MEM);
 
-        McpServer::GetInstance().AddTool("self.avatar.set_background",
-            "Select the black or white character background.",
+        McpServer::GetInstance().AddTool(
+            "self.avatar.set_background", "Select the black or white character background.",
             PropertyList({Property("color", kPropertyTypeString).SetMaxLength(5)}),
             [this](const PropertyList& props) -> ToolResult {
                 const auto color = props["color"].value<std::string>();
-                if (color != "black" && color != "white") return std::unexpected("Use black or white");
+                if (color != "black" && color != "white")
+                    return std::unexpected("Use black or white");
                 SetBackground(color == "white");
                 return true;
             });
@@ -138,12 +139,16 @@ public:
         display_.ConnectingWifi();
         WifiBoard::StartNetwork();
         gpio_config_t inputs{};
-        inputs.pin_bit_mask = (1ULL << pins::volume_up) | (1ULL << pins::volume_down) | (1ULL << pins::settings);
+        inputs.pin_bit_mask =
+            (1ULL << pins::volume_up) | (1ULL << pins::volume_down) | (1ULL << pins::settings);
         inputs.mode = GPIO_MODE_INPUT;
         inputs.pull_up_en = GPIO_PULLUP_ENABLE;
         ESP_ERROR_CHECK(gpio_config(&inputs));
-        ESP_ERROR_CHECK(xTaskCreate([](void* arg) { static_cast<AnimeCompanion*>(arg)->PollButtons(); },
-            "aura-buttons", 4096, this, 1, nullptr) == pdPASS ? ESP_OK : ESP_ERR_NO_MEM);
+        ESP_ERROR_CHECK(
+            xTaskCreate([](void* arg) { static_cast<AnimeCompanion*>(arg)->PollButtons(); },
+                        "aura-buttons", 4096, this, 1, nullptr) == pdPASS
+                ? ESP_OK
+                : ESP_ERR_NO_MEM);
     }
     AudioCodec* GetAudioCodec() override {
         static NoAudioCodecSimplex codec(16000, 24000, pins::speaker_bclk, pins::speaker_lrc,
@@ -160,13 +165,16 @@ public:
         cJSON_AddNumberToObject(s, "volume", GetAudioCodec()->output_volume());
     }
     const char* ApplyAppearance(const cJSON* j) {
-        auto get = [j](const char* key){return cJSON_GetObjectItemCaseSensitive(j,key);};
-        auto white = get("white"), half = get("half"), text = get("subtitles"), volume = get("volume");
+        auto get = [j](const char* key) { return cJSON_GetObjectItemCaseSensitive(j, key); };
+        auto white = get("white"), half = get("half"), text = get("subtitles"),
+             volume = get("volume");
         if (!cJSON_IsBool(white) || !cJSON_IsBool(half) || !cJSON_IsBool(text) ||
             !cJSON_IsNumber(volume) || volume->valuedouble != volume->valueint ||
-            volume->valueint < 0 || volume->valueint > 100) return "Invalid appearance settings";
+            volume->valueint < 0 || volume->valueint > 100)
+            return "Invalid appearance settings";
         std::lock_guard lock(controls_);
-        if (SetAvatarMode(cJSON_IsTrue(half)) != ESP_OK) return "Could not save display mode";
+        if (SetAvatarMode(cJSON_IsTrue(half)) != ESP_OK)
+            return "Could not save display mode";
         SetBackground(cJSON_IsTrue(white));
         SetSubtitles(cJSON_IsTrue(text));
         if (GetAudioCodec()->output_volume() != volume->valueint) {
@@ -176,25 +184,29 @@ public:
         return nullptr;
     }
     void ReturnToStation() {
-        if (!IsInWifiConfigMode()) return;
-        if (SsidManager::GetInstance().GetSsidList().empty()) {
+        if (!IsInWifiConfigMode())
+            return;
+        if (Settings("wifi").GetString("ssid").empty()) {
             display_.ShowNotification("Save a Wi-Fi network first", 3500);
             return;
         }
         display_.SystemMessage("Connecting to Wi-Fi", "Rejoining your saved network...");
         WifiManager::GetInstance().StopConfigAp();
     }
+
 private:
     void SetBackground(bool white) {
         std::lock_guard lock(controls_);
-        if (white_ == white) return;
+        if (white_ == white)
+            return;
         Settings(kAvatarSettings, true).SetBool("white", white);
         white_ = white;
         display_.SetWhite(white);
     }
     void SetSubtitles(bool value) {
         std::lock_guard lock(controls_);
-        if (subtitles_ == value) return;
+        if (subtitles_ == value)
+            return;
         Settings(kAvatarSettings, true).SetBool("subtitles", value);
         subtitles_ = value;
         display_.SetTextMode(value);
@@ -207,12 +219,15 @@ private:
             auto ms = esp_timer_get_time() / 1000;
             for (int i = 0; i < 3; ++i) {
                 auto edge = keys[i].Sample(!gpio_get_level(pins_used[i]), ms, i < 2);
-                if (edge == aura::Edge::None) continue;
+                if (edge == aura::Edge::None)
+                    continue;
                 if (i == 2) {
                     if (edge == aura::Edge::Press && !settings_queued_.exchange(true)) {
                         Application::GetInstance().Schedule([this] {
-                            if (IsInWifiConfigMode()) ReturnToStation();
-                            else EnterWifiConfigMode();
+                            if (IsInWifiConfigMode())
+                                ReturnToStation();
+                            else
+                                EnterWifiConfigMode();
                             settings_queued_ = false;
                         });
                     }
@@ -221,7 +236,8 @@ private:
                 std::lock_guard lock(controls_);
                 auto codec = GetAudioCodec();
                 if (edge == aura::Edge::Release) {
-                    if (dirty) codec->SetOutputVolume(codec->output_volume());
+                    if (dirty)
+                        codec->SetOutputVolume(codec->output_volume());
                     dirty = false;
                 } else {
                     auto level = aura::StepVolume(codec->output_volume(), i == 0 ? 1 : -1);
@@ -237,12 +253,13 @@ private:
         // Publish all three UI changes in one refresh. The display task signals completion
         // after its synchronous SPI flushes. PlaySound can wait on the Opus queue, so it
         // must run on the application task after the display lock has been released.
-        DisplayLockGuard guard(&display_);
         auto& app = Application::GetInstance();
         auto& wifi = WifiManager::GetInstance();
         auto instructions = std::string("Hotspot active") + "\n\n" + wifi.GetApSsid() +
                             "\n\nOpen in your browser\n" + wifi.GetApWebUrl();
-        if (reconnect_failed_.exchange(false)) instructions += "\n\nConnection failed. Check the saved network.";
+        if (reconnect_failed_.exchange(false))
+            instructions += "\n\nConnection failed. Check the saved network.";
+        DisplayLockGuard guard(&display_);
         display_.SystemMessage(LV_SYMBOL_WIFI "   Settings Mode", instructions.c_str());
         display_.ShowProvisioning();
         app.Alert(Lang::Strings::WIFI_CONFIG_MODE, hint.c_str(), "gear");
@@ -302,15 +319,21 @@ private:
 DECLARE_BOARD(AnimeCompanion);
 
 namespace aura {
-void AddAppearance(cJSON* s) { static_cast<AnimeCompanion&>(Board::GetInstance()).SnapshotAppearance(s); }
-const char* ApplyAppearance(const cJSON* j) { return static_cast<AnimeCompanion&>(Board::GetInstance()).ApplyAppearance(j); }
-void ReturnToStation() { Application::GetInstance().Schedule([] {
-    static_cast<AnimeCompanion&>(Board::GetInstance()).ReturnToStation();
-}); }
+void AddAppearance(cJSON* s) {
+    static_cast<AnimeCompanion&>(Board::GetInstance()).SnapshotAppearance(s);
 }
+const char* ApplyAppearance(const cJSON* j) {
+    return static_cast<AnimeCompanion&>(Board::GetInstance()).ApplyAppearance(j);
+}
+void ReturnToStation() {
+    Application::GetInstance().Schedule(
+        [] { static_cast<AnimeCompanion&>(Board::GetInstance()).ReturnToStation(); });
+}
+}  // namespace aura
 
 bool aura_return_to_station() {
-    if (SsidManager::GetInstance().GetSsidList().empty()) return false;
+    if (Settings("wifi").GetString("ssid").empty())
+        return false;
     aura::ReturnToStation();
     return true;
 }

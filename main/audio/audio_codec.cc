@@ -44,10 +44,10 @@ void AudioCodec::Start() {
 
 void AudioCodec::SetOutputVolume(int volume) {
     output_volume_ = volume;
-    ESP_LOGI(TAG, "Set output volume to %d", output_volume_);
+    ESP_LOGI(TAG, "Set output volume to %d", volume);
     
     Settings settings("audio", true);
-    settings.SetInt("output_volume", output_volume_);
+    settings.SetInt("output_volume", volume);
 }
 
 void AudioCodec::SetInputGain(float gain) {

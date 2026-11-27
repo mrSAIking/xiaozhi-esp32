@@ -165,11 +165,17 @@ void WifiManager::StopStation() {
     }
 
     ESP_LOGI(TAG, "Stopping station");
-    station_->Stop();
-    ESP_LOGI(TAG, "Station stopped");
     station_active_ = false;
-
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    // Aura serializes radio changes on its application task. Event callbacks
+    // and status readers must be able to acquire mutex_ during driver teardown.
     lock.unlock();
+    station_->Stop();
+#else
+    station_->Stop();
+    lock.unlock();
+#endif
+    ESP_LOGI(TAG, "Station stopped");
     NotifyEvent(WifiEvent::Disconnected);
     lock.lock();
 }
@@ -273,10 +279,14 @@ void WifiManager::StopConfigAp() {
     }
 
     ESP_LOGI(TAG, "Stopping config AP");
-    config_ap_->Stop();
     config_mode_active_ = false;
-
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
     lock.unlock();
+    config_ap_->Stop();
+#else
+    config_ap_->Stop();
+    lock.unlock();
+#endif
     NotifyEvent(WifiEvent::ConfigModeExit);
     lock.lock();
 }

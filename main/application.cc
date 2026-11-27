@@ -779,8 +779,14 @@ void Application::ShowActivationCode(const std::string& code, const std::string&
          digit_sound{'8', Lang::Sounds::OGG_8}, digit_sound{'9', Lang::Sounds::OGG_9}}};
 
     // This sentence uses 9KB of SRAM, so we need to wait for it to finish
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    const auto instructions = !code.empty() && message.find(code) == std::string::npos
+                                  ? message + "\n\n" + code : message;
+    Alert(Lang::Strings::ACTIVATION, instructions.c_str(), "link", Lang::Sounds::OGG_ACTIVATION);
+#else
     Alert(Lang::Strings::ACTIVATION, message.c_str(), "link", Lang::Sounds::OGG_ACTIVATION);
 
+#endif
     for (const auto& digit : code) {
         auto it = std::find_if(digit_sounds.begin(), digit_sounds.end(),
                                [digit](const digit_sound& ds) { return ds.digit == digit; });

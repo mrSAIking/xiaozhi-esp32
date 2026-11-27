@@ -21,7 +21,6 @@ constexpr size_t kFrameBytes = kWidth * kHeight * sizeof(uint16_t);
 
 constexpr int kPreviewMs = 5000;
 
-
 int64_t NextBlink(int64_t ms, const avatar::Mode& mode) {
     return ms + mode.interval[0] + esp_random() % (mode.interval[1] - mode.interval[0] + 1);
 }
@@ -84,10 +83,12 @@ const uint16_t* AvatarDisplay::Pixels(int offset) const {
 
 void AvatarDisplay::SystemMessage(const char* title, const char* message) {
     DisplayLockGuard guard(this);
-    if (!system_title_) return;
+    if (!system_title_)
+        return;
     lv_label_set_text(system_title_, title);
     lv_label_set_text(system_message_, message);
-    if (lv_screen_active() != setup_screen_) lv_screen_load(setup_screen_);
+    if (lv_screen_active() != setup_screen_)
+        lv_screen_load(setup_screen_);
 }
 
 void AvatarDisplay::SetChatMessage(const char* role, const char* content) {
@@ -99,19 +100,23 @@ void AvatarDisplay::SetChatMessage(const char* role, const char* content) {
 
 void AvatarDisplay::ShowNotification(const char* text, int duration_ms) {
     DisplayLockGuard guard(this);
-    if (!notice_) { LcdDisplay::ShowNotification(text, duration_ms); return; }
+    if (!notice_) {
+        LcdDisplay::ShowNotification(text, duration_ms);
+        return;
+    }
     lv_label_set_text(notice_, text);
     lv_obj_remove_flag(notice_, LV_OBJ_FLAG_HIDDEN);
-    notice_until_ = esp_timer_get_time()/1000 + duration_ms;
+    notice_until_ = esp_timer_get_time() / 1000 + duration_ms;
 }
 
 void AvatarDisplay::Volume(int percent) {
     DisplayLockGuard guard(this);
-    if (!volume_box_) return;
+    if (!volume_box_)
+        return;
     lv_label_set_text_fmt(volume_label_, LV_SYMBOL_VOLUME_MAX "   %d%%", percent);
     lv_bar_set_value(volume_bar_, percent, LV_ANIM_OFF);
     lv_obj_remove_flag(volume_box_, LV_OBJ_FLAG_HIDDEN);
-    volume_until_ = esp_timer_get_time()/1000 + 1500;
+    volume_until_ = esp_timer_get_time() / 1000 + 1500;
 }
 
 void AvatarDisplay::SetStatus(const char* status) {
@@ -146,35 +151,15 @@ void AvatarDisplay::SetupUI() {
     DisplayLockGuard guard(this);
     if (IsSetupUICalled())
         return;
-    ESP_LOGI("Avatar", "Creating Xiaozhi setup screen");
+    ESP_LOGI("Avatar", "Creating Aura system screens");
     LcdDisplay::SetupUI();
     lv_timer_resume(lv_display_get_refr_timer(display_));
-#if CONFIG_ANIME_SETUP_UI_ONLY
-    ESP_LOGI("Avatar", "Setup UI only, avatar disabled");
-    return;
-#endif
-    frame_ = static_cast<uint16_t*>(
-        heap_caps_aligned_alloc(64, kFrameBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-    if (!frame_) {
-        ESP_LOGE("Avatar", "No PSRAM framebuffer; retaining setup screen");
-        return;
-    }
-
-    avatar_screen_ = lv_obj_create(nullptr);
-    lv_obj_remove_style_all(avatar_screen_);
-    lv_obj_remove_flag(avatar_screen_, LV_OBJ_FLAG_SCROLLABLE);
-    image_ = lv_image_create(avatar_screen_);
     descriptor_.header.magic = LV_IMAGE_HEADER_MAGIC;
     descriptor_.header.cf = LV_COLOR_FORMAT_RGB565;
     descriptor_.header.w = kWidth;
     descriptor_.header.h = kHeight;
     descriptor_.header.stride = kWidth * 2;
     descriptor_.data_size = kFrameBytes;
-    descriptor_.data = reinterpret_cast<const uint8_t*>(frame_);
-    LoadMode(requested_mode_.load(), esp_timer_get_time() / 1000);
-    lv_image_set_src(image_, &descriptor_);
-    lv_obj_set_pos(image_, 0, 0);
-    CreateOverlays();
     boot_screen_ = lv_obj_create(nullptr);
     lv_obj_remove_style_all(boot_screen_);
     boot_image_ = descriptor_;
@@ -219,7 +204,7 @@ void AvatarDisplay::SetupUI() {
     };
     system_title_ = label(setup_screen_, 172, 0xda91ff);
     system_message_ = label(setup_screen_, 225, 0xffffff);
-    if (auto font = GetTheme()->GetTextFont())
+    if (auto font = GetTheme() ? GetTheme()->GetTextFont() : nullptr)
         lv_obj_set_style_text_font(system_message_, font->font(), 0);
     volume_box_ = lv_obj_create(lv_layer_top());
     lv_obj_set_size(volume_box_, 136, 57);
@@ -239,6 +224,23 @@ void AvatarDisplay::SetupUI() {
     lv_obj_set_style_bg_color(notice_, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(notice_, LV_OPA_80, 0);
     lv_obj_add_flag(notice_, LV_OBJ_FLAG_HIDDEN);
+#if !CONFIG_ANIME_SETUP_UI_ONLY
+    frame_ = static_cast<uint16_t*>(
+        heap_caps_aligned_alloc(64, kFrameBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    if (frame_) {
+        avatar_screen_ = lv_obj_create(nullptr);
+        lv_obj_remove_style_all(avatar_screen_);
+        lv_obj_remove_flag(avatar_screen_, LV_OBJ_FLAG_SCROLLABLE);
+        image_ = lv_image_create(avatar_screen_);
+        descriptor_.data = reinterpret_cast<const uint8_t*>(frame_);
+        LoadMode(requested_mode_.load(), esp_timer_get_time() / 1000);
+        lv_image_set_src(image_, &descriptor_);
+        lv_obj_set_pos(image_, 0, 0);
+        CreateOverlays();
+    } else {
+        ESP_LOGE("Avatar", "Framebuffer allocation failed; keeping system UI available");
+    }
+#endif
     lv_screen_load(boot_screen_);
     lv_timer_create(
         [](lv_timer_t* timer) {
@@ -436,6 +438,14 @@ void AvatarDisplay::Tick() {
         }
         return;
     }
+    if (!frame_) {
+        if (lv_screen_active() != setup_screen_)
+            SystemMessage("System status",
+                          "Character display unavailable. Settings are accessible.");
+        return;
+    }
+    if (lv_screen_active() == boot_screen_)
+        ShowNotification("Ready", 750);
     const int selected = requested_mode_.load();
     const auto& mode = avatar::modes[selected];
     if (current_mode_ != selected || white_ != requested_white_.load()) {
