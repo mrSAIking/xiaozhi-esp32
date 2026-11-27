@@ -63,7 +63,11 @@ public:
         display_.SetTextMode(subtitles_);
         display_.SetHalfBody(half_body_);
         ESP_LOGI("AnimeBoard", "Restored avatar mode: %s", half_body_ ? "half_body" : "full_body");
-        boot_.OnPressDown([this]{if(music::Stop())music_press_=true;});
+        boot_.OnPressDown([this]{
+            const uint32_t now=esp_timer_get_time()/1000;
+            if(music::Stop()){music_press_=true;music_press_ms_=now;}
+            else if(now-music_press_ms_>750) music_press_=false;
+        });
         boot_.OnClick([this]() {
             if(music_press_.exchange(false)||music::Stop())return;
             auto& app = Application::GetInstance();
@@ -278,6 +282,7 @@ private:
         display_.SetTextMode(value);
     }
     std::atomic<bool> music_press_{false};
+    uint32_t music_press_ms_=0; // Only used by the button event task.
     void PollButtons() {
         aura::ControlButton keys[3];
         const gpio_num_t pins_used[] = {pins::volume_up, pins::volume_down, pins::settings};

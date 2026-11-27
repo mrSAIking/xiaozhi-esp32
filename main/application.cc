@@ -664,7 +664,7 @@ void Application::InitializeProtocol() {
             });
         } else if (strcmp(type->valuestring, "tts") == 0) {
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
-            if(music::active) return;
+            if(music::speaker_claimed) return;
 #endif
             auto state = cJSON_GetObjectItem(root, "state");
             if (!cJSON_IsString(state)) {
@@ -673,7 +673,7 @@ void Application::InitializeProtocol() {
             if (strcmp(state->valuestring, "start") == 0) {
                 Schedule([this]() {
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
-                    if(music::active)return;
+                    if(music::speaker_claimed)return;
 #endif
                     aborted_ = false;
                     SetDeviceState(kDeviceStateSpeaking);

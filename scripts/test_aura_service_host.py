@@ -77,6 +77,17 @@ def main():
         subprocess.run(['g++','-std=c++23','-I'+str(ROOT/'main'),'-pthread','-I'+str(d),'-I'+str(cjson.parent),
                         '-I'+str(ROOT/'main/boards/anime-companion-s3'),ROOT/'scripts/tests/aura_service_host.cc',ROOT/'main/boards/anime-companion-s3/aura_search.cc',d/'json.o','-o',d/'check'],check=True)
         subprocess.run([d/'check'],check=True)
+        # The Xtensa binary codec runs on the device. Use deterministic codec/I2S
+        # adapters to exercise the actual concurrent streaming loop on Linux.
+        shims=d/'music'
+        shims.mkdir()
+        for header in ('audio_service esp_heap_caps esp_crt_bundle esp_http_client esp_mp3_dec esp_log esp_timer').split():
+            (shims/(header+'.h')).write_text('#include "music_host_sdk.h"')
+        board=ROOT/'main/boards/anime-companion-s3'
+        subprocess.run(['g++','-std=c++23','-pthread','-I'+str(shims),'-I'+str(ROOT/'scripts/tests'),
+                        '-I'+str(board),'-I'+str(cjson.parent),ROOT/'scripts/tests/music_stream_host.cc',
+                        d/'json.o','-o',d/'stream-test'],check=True)
+        subprocess.run([d/'stream-test',board/'examples/aura-music/songs'],check=True,timeout=30)
 if __name__=='__main__':
     main()
 

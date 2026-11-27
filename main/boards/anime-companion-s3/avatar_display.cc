@@ -458,7 +458,11 @@ void AvatarDisplay::Tick() {
         notice_until_ = 0;
     }
     if(music::active){PlayerTick(ms);return;}
-    if(player_ && lv_screen_active()==player_)player_next_=0;
+    if(player_){
+        if(lv_screen_active()==player_)lv_screen_load(avatar_screen_?avatar_screen_:setup_screen_);
+        lv_obj_delete(player_);player_=nullptr;player_next_=player_start_us_=0;
+        if(disc_.data){lv_image_cache_drop(&disc_);heap_caps_free(const_cast<uint8_t*>(disc_.data));disc_.data=nullptr;}
+    }
     const bool can_preview = state == kDeviceStateStarting ||
                              state == kDeviceStateWifiConfiguring ||
                              state == kDeviceStateActivating;

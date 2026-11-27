@@ -198,6 +198,10 @@ const char* Stream(const std::string& url, AudioService& audio, const std::atomi
     const char* error = nullptr;
     while (!cancel) {
         bool done = p.done.load();
+        if (done && p.error) {
+            error = p.error;
+            break;
+        }
         auto n = p.available();
         if (!n && done) {
             error = p.error ? p.error : skip || !played ? "Incomplete MP3" : nullptr;
@@ -210,7 +214,7 @@ const char* Stream(const std::string& url, AudioService& audio, const std::atomi
         }
         priming = false;
         if (skip) {
-            auto part = std::min(skip, n);
+            auto part = std::min<uint32_t>(skip, n);
             p.read += part;
             skip -= part;
             if (!part)

@@ -344,7 +344,10 @@ void AudioService::AudioOutputTask() {
         // Simplex I2S has one active DMA descriptor; the rest can be queued ahead.
         const int64_t dma_us =
             1000000LL * (AUDIO_CODEC_DMA_DESC_NUM - 1) * AUDIO_CODEC_DMA_FRAME_NUM / rate;
-        if (!task.music) playback_meter_.Submit(task.pcm.data(), task.pcm.size(), rate, esp_timer_get_time(), dma_us,
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+        if (!task.music_generation)
+#endif
+        playback_meter_.Submit(task.pcm.data(), task.pcm.size(), rate, esp_timer_get_time(), dma_us,
                                generation);
 #endif
         codec_->OutputData(task.pcm);
@@ -371,7 +374,7 @@ void AudioService::AudioOutputTask() {
         }
 #endif
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
-        if (task.music && music_owned_) {music_samples_+=task.pcm.size();music_write_us_=esp_timer_get_time();}
+        if (task.music_generation && task.music_generation==playback_generation_ && music_owned_) {music_samples_+=task.pcm.size();music_write_us_=esp_timer_get_time();}
 #endif
         output_in_flight_ = false;
         notify_drained = MarkPlaybackDrainedLocked();
@@ -843,14 +846,14 @@ void AudioService::OwnMusicOutput(bool own){
     ++playback_generation_;
     audio_decode_queue_.clear();audio_playback_queue_.clear();
     playback_meter_.Reset(playback_generation_);
-    if(own){music_samples_=0;music_write_us_=0;}
+    if(own){music_samples_=0;music_write_us_=0;music_reported_ms_=0;}
     audio_queue_cv_.notify_all();
 }
 bool AudioService::QueueMusic(std::vector<int16_t>&& pcm){
     std::unique_lock lock(audio_queue_mutex_);
     audio_queue_cv_.wait(lock,[this]{return !music_owned_ || service_stopped_ || !audio_playback_queue_.full();});
     if(!music_owned_ || service_stopped_)return false;
-    AudioTask task{};task.music=true;task.pcm=std::move(pcm);
+    AudioTask task{};task.music_generation=playback_generation_;task.pcm=std::move(pcm);
     audio_playback_queue_.push_back(std::move(task)); audio_queue_cv_.notify_all();return true;
 }
 uint32_t AudioService::MusicTimeMs(){
@@ -858,7 +861,8 @@ uint32_t AudioService::MusicTimeMs(){
     const int rate=codec_->output_sample_rate();
     const int64_t ahead=std::max<int64_t>(0,(AUDIO_CODEC_DMA_DESC_NUM-1)*AUDIO_CODEC_DMA_FRAME_NUM -
         (esp_timer_get_time()-music_write_us_)*rate/1000000);
-    return std::max<int64_t>(0,int64_t(music_samples_)-ahead)*1000/rate;
+    music_reported_ms_=std::max(music_reported_ms_,uint32_t(std::max<int64_t>(0,int64_t(music_samples_)-ahead)*1000/rate));
+    return music_reported_ms_;
 }
 #endif
 void AudioService::ResetDecoder() {

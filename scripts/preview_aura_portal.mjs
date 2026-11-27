@@ -48,7 +48,7 @@ const server = createServer(async (req, res) => {
           .filter(t=>t.title.toLowerCase().includes(p.query.toLowerCase()));
         res.setHeader("content-type","application/json");res.end(JSON.stringify({songs,total:songs.length}));return;
       }
-      if(p.action==="music_play"){snapshot.music.active=true;snapshot.music.state="Playing";}
+      if(p.action==="music_play"){snapshot.music.active=true;snapshot.music.state="Playing";snapshot.music.title="Studio tone";snapshot.music.artist="Project Aura";snapshot.music.ms=1400;snapshot.music.duration=4;}
       if(p.action==="music_stop"){snapshot.music.active=false;snapshot.music.state="Idle";}
       if (p.action === "appearance" || p.action==="volume") Object.assign(snapshot,p);
       if(["animation","preview_animation"].includes(p.action)){
@@ -204,6 +204,9 @@ try {
   await evaluate("$('mobileNav').click();document.querySelector('[data-page=audio]').click();$('volume').value=25;$('applyVolume').click()");
   await until("state.volume===25 && state.white && state.subtitles");
   await evaluate("page('weather');$('key').value='new';$('reveal').click();");
+  assert.equal(await evaluate("getComputedStyle($('key')).webkitTextSecurity"),"none");
+  await evaluate("$('reveal').click()");
+  assert.equal(await evaluate("getComputedStyle($('key')).webkitTextSecurity"),"disc");
   assert.equal(await evaluate("$('key').type"), "text");
   await evaluate("$('clear').click();$('test').click()");
   assert.equal(await evaluate("$('test').disabled && $('weatherHint').textContent.includes('hotspot')"),true);
@@ -238,6 +241,13 @@ try {
   await until("$('songList').querySelector('button') && !$('songList').querySelector('button').disabled");
   await evaluate("$('songList').querySelector('button').click()");
   await until("state.music.active");
+  for(const [device,width,height] of [["mobile",412,915],["desktop",1360,960]]){
+    await call("Emulation.setDeviceMetricsOverride",{width,height,deviceScaleFactor:1,mobile:device==="mobile"});
+    const metrics=await call("Page.getLayoutMetrics");
+    const shot=await call("Page.captureScreenshot",{format:"png",captureBeyondViewport:true,
+      clip:{x:0,y:0,width,height:Math.max(height,metrics.cssContentSize.height),scale:1}});
+    await writeFile(web+device+"-home-music-preview.png",Buffer.from(shot.data,"base64"));
+  }
   await evaluate("$('musicStop').click()");
   await until("!state.music.active");
   assert.equal(await evaluate("['key','searchKey'].every(k=>$(k).type==='text'&&$(k).autocomplete==='off'&&!$(k).spellcheck)&&$('access').type==='password'"),true);

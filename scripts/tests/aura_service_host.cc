@@ -14,6 +14,15 @@ int main() {
     assert(music::matches(tracks.front(),"aura")&&!music::matches(tracks.front(),"missing"));
     assert(!testCatalog("../test.mp3") && !testCatalog("songs/%2E%2E/test.mp3") && !testCatalog("https://raw.githubusercontent.com/other/library/main/test.mp3"));
     assert(!music::catalog(base,nullptr,tracks));
+    for(int n=1;n<15;n++)tracks.push_back({std::to_string(n),"Song "+std::to_string(n),"Fixture","",4});
+    for(int offset:{0,6,12}){
+        Json page(music::page(tracks,"",offset,6),cJSON_Delete);
+        assert(num(page.get(),"total")==15);
+        assert(cJSON_GetArraySize(field(page.get(),"songs"))==(offset==12?3:6));
+        assert((field(page.get(),"next_offset")!=nullptr)==(offset<12));
+    }
+    Json filtered(music::page(tracks,"song 14",0,6),cJSON_Delete);
+    assert(num(filtered.get(),"total")==1);
     Init();
     auto cmd = [](std::string raw, bool home = false) {
         auto j = parse(raw);

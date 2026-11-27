@@ -83,7 +83,7 @@ The setup hotspot stops the normal station before starting provisioning. Its net
 | `self.weather.get_current` | OpenWeather direct geocoding and current observations for the saved city. The worker fetches on connection, keeps a validated observation for up to 12 minutes and retries failed refreshes after 90 seconds. Station loss or changed configuration invalidates the observation. |
 | `self.tavily.web_search` | Tavily Search with the locally saved Bearer key. Both the portal test and MCP call use the same TLS client and response validator. Disabling or clearing search removes the local tool and its request-time authorization. |
 | `self.time.get_current` | The device clock reports its synchronization state. No wall-clock value is returned before an SNTP update. |
-| Music | No provider configured and no local playback tool registered. Conversation and synthesized audio still use Xiaozhi. |
+| Music | GitHub MP3 library, disabled by default. The four local music tools report availability from the saved manifest. Conversation and synthesized audio still use Xiaozhi. See the [library setup guide](examples/aura-music/README.md). |
 
 Under **Web Search**, leave the password field empty to keep the stored key. **Clear key** marks it for removal on Save. Advanced and Web Search share the existing NVS key. Authenticated **External Services** diagnostics report tool invocations, HTTP status and request times. A missing wall-clock timestamp means the device had no synchronized time for that event. Counters and diagnostics restart on boot.
 

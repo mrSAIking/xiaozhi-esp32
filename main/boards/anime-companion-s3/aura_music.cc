@@ -8,11 +8,11 @@
 #include "music_stream.h"
 #include "nvs.h"
 namespace music {
-std::atomic<bool> active{false};
+std::atomic<bool> active{false}, speaker_claimed{false};
 namespace {
 using Json = std::unique_ptr<cJSON, decltype(&cJSON_Delete)>;
 std::mutex mu;
-bool enabled = false, refresh = false, ready = false, network = false;
+bool enabled = false, refresh = false, worker_running = false, network = false;
 std::atomic<bool> cancel{false}, cancel_manifest{false};
 uint32_t generation = 0, catalog_revision = 0, play_id = 0;
 std::string url, library = "Unconfigured", state = "Idle", error;
@@ -32,9 +32,19 @@ void stopLocked() {
         cancel = true;
         state = "Stopping";
         active = false;
-        position = audio().MusicTimeMs();
+        position = speaker_claimed ? audio().MusicTimeMs() : 0;
+        speaker_claimed = false;
         audio().OwnMusicOutput(false);
     }
+}
+void run(void*);
+bool kickLocked() {
+    if (worker_running)
+        return true;
+    worker_running = xTaskCreate(run, "aura-music", 24576, nullptr, 2, nullptr) == pdPASS;
+    if (!worker_running)
+        library = "Music task allocation failed";
+    return worker_running;
 }
 const char* configure(bool on, const std::string& path) {
     if ((on || !path.empty()) && (root(path).empty() || !path.ends_with(".json")))
@@ -59,12 +69,14 @@ const char* configure(bool on, const std::string& path) {
     synced = 0;
     refresh = on;
     cancel_manifest = true;
-    library = on ? "Awaiting home Wi-Fi" : "Disabled";
+    library = !on ? "Disabled" : network ? "Refresh queued" : "Awaiting home Wi-Fi";
+    if (on && network && !kickLocked())
+        return "Settings saved; music task unavailable";
     return nullptr;
 }
 const char* play(const std::string& name) {
     std::lock_guard lock(mu);
-    if (!ready || !enabled || url.empty() || !network)
+    if (!enabled || url.empty() || !network)
         return "Music unavailable";
     auto device = Application::GetInstance().GetDeviceState();
     if (device != kDeviceStateIdle && device != kDeviceStateSpeaking &&
@@ -87,6 +99,8 @@ const char* play(const std::string& name) {
             }
     if (!match)
         return "Song unavailable. Search the catalog for a title or ID";
+    if (!kickLocked())
+        return "Music task unavailable";
     selected = *match;
     error.clear();
     position = 0;
@@ -104,7 +118,15 @@ void run(void*) {
             auto track = selected;
             auto id = play_id;
             pending = false;
+            if (Application::GetInstance().GetDeviceState() == kDeviceStateSpeaking) {
+                lock.unlock();
+                // Give already-playing confirmation audio a bounded chance to finish.
+                for (int i = 0; i < 45 && !cancel && !audio().IsPlaybackIdle(); i++)
+                    vTaskDelay(pdMS_TO_TICKS(20));
+                lock.lock();
+            }
             if (!cancel) {
+                speaker_claimed = true;
                 audio().OwnMusicOutput(true);
                 Application::GetInstance().Schedule([id] {
                     {
@@ -129,6 +151,7 @@ void run(void*) {
                 position = audio().MusicTimeMs();
             audio().OwnMusicOutput(false);
             active = false;
+            speaker_claimed = false;
             state = cancel ? "Idle" : err ? "Error" : "Completed";
             error = cancel || !err ? "" : err;
         } else if (enabled && network && refresh) {
@@ -144,7 +167,8 @@ void run(void*) {
             if (!err) {
                 Json j(cJSON_ParseWithLengthOpts(bytes.c_str(), bytes.size() + 1, nullptr, true),
                        cJSON_Delete);
-                if (!j || !catalog(target, j.get(), found))
+                if (bytes.find(char(0)) != std::string::npos || !j ||
+                    !catalog(target, j.get(), found))
                     err = "Invalid catalog or song path";
             }
             lock.lock();
@@ -157,10 +181,12 @@ void run(void*) {
                     synced = t > 1700000000 ? t : 0;
                 }
             }
+        } else {
+            worker_running = false;
+            break;
         }
-        lock.unlock();
-        vTaskDelay(pdMS_TO_TICKS(50));
     }
+    vTaskDelete(nullptr);
 }
 }  // namespace
 bool Stop() {
@@ -180,12 +206,14 @@ void Network(bool on) {
     if (enabled) {
         refresh = true;
         library = on ? "Refresh queued" : "Awaiting home Wi-Fi";
+        if (on)
+            kickLocked();
     }
 }
 View Player() {
     std::lock_guard lock(mu);
     return {selected.title, selected.artist, state, selected.duration,
-            active ? audio().MusicTimeMs() : position};
+            speaker_claimed ? audio().MusicTimeMs() : position};
 }
 cJSON* Status() {
     std::lock_guard lock(mu);
@@ -193,13 +221,13 @@ cJSON* Status() {
     cJSON_AddBoolToObject(j, "enabled", enabled);
     cJSON_AddBoolToObject(j, "active", active.load());
     cJSON_AddStringToObject(j, "url", url.c_str());
-    cJSON_AddStringToObject(j, "library", ready ? library.c_str() : "Worker unavailable");
+    cJSON_AddStringToObject(j, "library", library.c_str());
     cJSON_AddStringToObject(j, "state", state.c_str());
     cJSON_AddStringToObject(j, "error", error.c_str());
     cJSON_AddStringToObject(j, "title", selected.title.c_str());
     cJSON_AddStringToObject(j, "artist", selected.artist.c_str());
     cJSON_AddNumberToObject(j, "duration", selected.duration);
-    cJSON_AddNumberToObject(j, "ms", active ? audio().MusicTimeMs() : position);
+    cJSON_AddNumberToObject(j, "ms", speaker_claimed ? audio().MusicTimeMs() : position);
     cJSON_AddNumberToObject(j, "count", songs.size());
     cJSON_AddNumberToObject(j, "revision", catalog_revision);
     cJSON_AddNumberToObject(j, "synced", synced);
@@ -207,28 +235,9 @@ cJSON* Status() {
 }
 cJSON* List(const std::string& query, int offset, int limit) {
     std::lock_guard lock(mu);
-    auto j = cJSON_CreateObject(), arr = cJSON_AddArrayToObject(j, "songs");
-    auto pattern = fold(query);
-    int total = 0;
-    limit = std::clamp(limit, 1, 12);
-    offset = std::max(offset, 0);
+    auto* j = page(songs, query, offset, limit);
     if (!enabled || url.empty())
         cJSON_AddStringToObject(j, "status", "Music unavailable");
-    for (auto& t : songs)
-        if (matches(t, pattern)) {
-            if (total >= offset && total - offset < limit) {
-                auto row = cJSON_CreateObject();
-                cJSON_AddStringToObject(row, "id", t.id.c_str());
-                cJSON_AddStringToObject(row, "title", t.title.c_str());
-                cJSON_AddStringToObject(row, "artist", t.artist.c_str());
-                cJSON_AddNumberToObject(row, "duration", t.duration);
-                cJSON_AddItemToArray(arr, row);
-            }
-            ++total;
-        }
-    cJSON_AddNumberToObject(j, "total", total);
-    if (offset < total - limit)
-        cJSON_AddNumberToObject(j, "next_offset", offset + limit);
     return j;
 }
 const char* Command(const cJSON* j) {
@@ -247,11 +256,11 @@ const char* Command(const cJSON* j) {
         return play(stringField(j, "song"));
     if (a == "music_refresh" || a == "music_test") {
         std::lock_guard lock(mu);
-        if (!ready || !enabled || !network)
+        if (!enabled || !network)
             return "Enable music and connect to home Wi-Fi";
         refresh = true;
         library = "Refresh queued";
-        return nullptr;
+        return kickLocked() ? nullptr : "Music task unavailable";
     }
     return "Unknown music action";
 }
@@ -267,7 +276,7 @@ void Init() {
         }
         nvs_close(h);
     }
-    ready = xTaskCreate(run, "aura-music", 12288, nullptr, 2, nullptr) == pdPASS;
+
     auto& m = McpServer::GetInstance();
     m.AddTool(
         "self.music.list_songs",

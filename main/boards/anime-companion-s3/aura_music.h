@@ -8,7 +8,7 @@ struct View {
     int duration = 0;
     unsigned ms = 0;
 };
-extern std::atomic<bool> active;
+extern std::atomic<bool> active, speaker_claimed;
 bool Stop();
 void Init();
 void Network(bool connected);

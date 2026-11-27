@@ -101,7 +101,9 @@ enum AudioTaskType {
 struct AudioTask {
     AudioTaskType type;
     std::vector<int16_t> pcm;
-    bool music = false;
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    uint32_t music_generation = 0;
+#endif
     uint32_t timestamp = 0;
     uint32_t playback_id = 0;
     uint32_t media_position_ms = 0;
@@ -205,6 +207,7 @@ private:
     bool decode_in_flight_ = false;
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
     bool music_owned_ = false;
+    uint32_t music_reported_ms_ = 0;
     uint64_t music_samples_ = 0;
     int64_t music_write_us_ = 0;
 #endif

@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cmath>
 #include <string>
+#include <string_view>
 #include <vector>
 namespace music {
 struct Song {
@@ -100,6 +101,30 @@ inline std::string fold(std::string s) {
 inline bool matches(const Song& s, const std::string& folded) {
     return fold(s.title).find(folded) != std::string::npos ||
            fold(s.artist).find(folded) != std::string::npos;
+}
+inline cJSON* page(const std::vector<Song>& songs, const std::string& query, int offset,
+                   int limit) {
+    auto j = cJSON_CreateObject(), arr = cJSON_AddArrayToObject(j, "songs");
+    auto pattern = fold(query);
+    int total = 0;
+    limit = std::clamp(limit, 1, 12);
+    offset = std::max(offset, 0);
+    for (auto& t : songs)
+        if (matches(t, pattern)) {
+            if (total >= offset && total - offset < limit) {
+                auto row = cJSON_CreateObject();
+                cJSON_AddStringToObject(row, "id", t.id.c_str());
+                cJSON_AddStringToObject(row, "title", t.title.c_str());
+                cJSON_AddStringToObject(row, "artist", t.artist.c_str());
+                cJSON_AddNumberToObject(row, "duration", t.duration);
+                cJSON_AddItemToArray(arr, row);
+            }
+            ++total;
+        }
+    cJSON_AddNumberToObject(j, "total", total);
+    if (offset < total - limit)
+        cJSON_AddNumberToObject(j, "next_offset", offset + limit);
+    return j;
 }
 inline int frameBytes(const uint8_t* h) {
     if (h[0] != 255 || (h[1] & 0xe0) != 0xe0 || (h[1] & 6) != 2)
