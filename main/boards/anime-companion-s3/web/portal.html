@@ -11,9 +11,10 @@
 .layout{display:grid;grid-template-columns:210px minmax(0,1fr);min-height:100vh}aside{background:var(--sidebar);border-right:1px solid var(--line);padding:30px 14px}.brand{display:block;width:116px;margin:0 12px 28px}.nav{display:grid;gap:3px}.nav button{border:0;border-radius:4px;background:none;text-align:left;padding:9px 13px;color:var(--muted);font-size:14px}.nav button:hover,.nav button.active{background:#202024;color:var(--fg)}.nav button.active{box-shadow:inset 2px 0 var(--accent)}.mobileNav{display:none}
 .pane{width:100%;max-width:960px;padding:26px clamp(18px,4vw,52px) 40px}.top{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px;padding-bottom:15px;border-bottom:1px solid var(--line)}.status{display:inline-flex;align-items:center;gap:7px}.status:before{content:"";width:7px;height:7px;background:var(--muted);border-radius:50%}.status.online:before{background:var(--ok)}
 h1{font-size:26px;letter-spacing:-.04em;line-height:1.2;margin:24px 0 18px}h2,legend{font-size:16px;font-weight:600;letter-spacing:-.015em;margin:0 0 10px}p{margin:7px 0 12px;color:var(--muted)}.box,iframe{background:var(--panel);border:1px solid var(--line);border-radius:7px}.box{padding:18px;margin:0 0 12px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.grid>*{min-width:0}.big{font-size:22px;font-weight:550;letter-spacing:-.03em}.link{color:var(--fg);padding:4px 0;background:none;border:0;text-decoration:underline;text-underline-offset:4px;text-decoration-color:#57575c;font-size:13px}
-dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-top:1px solid var(--line)}dt{color:var(--muted)}dd{margin:0;text-align:right;overflow-wrap:anywhere}label{display:block;font-size:14px;margin:12px 0 5px}input,select{width:100%;min-width:0;background:#101012;border:1px solid #414147;border-radius:4px;padding:8px 10px}input[type=checkbox],input[type=radio]{width:auto;margin:0 5px 0 0}input[type=range]{padding:0;display:block;margin:13px 0}input{accent-color:var(--accent)}fieldset{border:0;margin:0;padding:0}.row,.actions{display:flex;align-items:center;gap:8px}.actions{margin-top:15px;flex-wrap:wrap}.row input{flex:1}.btn{background:#242429;border:1px solid #39393e;padding:7px 12px;border-radius:4px;white-space:nowrap;font-size:14px}.primary{color:white;background:#6941c6;border-color:#8763dc}.btn:hover{filter:brightness(1.13)}.feedback{font-size:14px;color:var(--ok)}.feedback:empty{display:none}.feedback.error{color:var(--error)}.swatches{display:flex;gap:10px}.swatch{display:grid;justify-items:center;border:1px solid var(--line);border-radius:5px;padding:8px 12px;gap:7px;cursor:pointer}.swatch:has(:checked){border-color:var(--accent)}.swatch img{object-fit:contain}.sub{font-size:14px}iframe{width:100%;min-height:540px}#volPercent{float:right;font-variant-numeric:tabular-nums}#audio .box{max-width:620px}
+dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-top:1px solid var(--line)}dt{color:var(--muted)}dd{margin:0;text-align:right;overflow-wrap:anywhere}label{display:block;font-size:14px;margin:12px 0 5px}input,select{width:100%;min-width:0;background:#101012;border:1px solid #414147;border-radius:4px;padding:8px 10px}input[type=checkbox],input[type=radio]{width:auto;margin:0 5px 0 0}input[type=range]{padding:0;display:block;margin:13px 0}input{accent-color:var(--accent)}fieldset{border:0;margin:0;padding:0}.row,.actions{display:flex;align-items:center;gap:8px}.actions{margin-top:15px;flex-wrap:wrap}.row input{flex:1}.btn{background:#242429;border:1px solid #39393e;padding:7px 12px;border-radius:4px;white-space:nowrap;font-size:14px}.primary{color:white;background:#6941c6;border-color:#8763dc}.btn:hover{filter:brightness(1.13)}.feedback{font-size:14px;color:var(--ok)}.feedback:empty{display:none}.feedback.error{color:var(--error)}.swatches{display:flex;gap:10px}.swatch{display:grid;justify-items:center;border:1px solid var(--line);border-radius:5px;padding:8px 12px;gap:7px;cursor:pointer}.swatch:has(:checked){border-color:var(--accent)}.swatch img{object-fit:contain}.sub{font-size:14px}iframe{width:100%;min-height:180px}#volPercent{float:right;font-variant-numeric:tabular-nums}#audio .box{max-width:620px}
 @media(max-width:700px){.layout{display:block}aside{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border:0;border-bottom:1px solid var(--line)}.brand{width:90px;margin:0}.nav{display:none}.mobileNav{display:block;width:auto;max-width:55%;font-size:14px}.pane{padding:16px}.top{padding-bottom:10px}h1{font-size:23px;margin:18px 0 14px}.box{padding:14px}.row{flex-wrap:wrap}.row input{min-width:105px}.grid{gap:8px}.big{font-size:18px}}
 @media(max-width:370px){.grid{grid-template-columns:1fr}}
+#appearance{max-width:720px}.settingRow{border-top:1px solid var(--line);margin-top:14px;padding:12px 0 0;display:flex;align-items:center;justify-content:space-between;gap:18px}.settingRow label{margin:0}.settingRow select{width:min(50%,220px)}.switch{appearance:none;width:34px!important;height:19px;background:#414147;border:0;border-radius:15px;padding:3px;cursor:pointer}.switch:before{content:"";display:block;width:13px;height:13px;background:#eee;border-radius:50%}.switch:checked{background:var(--accent)}.switch:checked:before{transform:translateX(15px)}.swatches{flex-wrap:wrap}.swatch{display:flex;align-items:center;flex:1;justify-content:flex-start;gap:16px;padding:8px;margin:0}.swatch img{border-radius:2px;width:60px;height:90px}.swatch span{white-space:nowrap}.brand{mix-blend-mode:screen}
 </style>
   </head>
   <body>
@@ -58,7 +59,7 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
             </article>
             <article class="box">
               <h2>Weather</h2>
-              <div class="big" id="weatherCard">Not configured</div>
+              <div class="big" id="weatherCard">—</div>
               <p id="weatherCity"></p>
               <button data-go="weather" class="link">Weather settings →</button>
             </article>
@@ -169,8 +170,8 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
         </section>
         <section id="appearance" hidden class="box">
           <fieldset><legend>Character background</legend><div class="swatches"><label class="swatch"><img width="80" height="120" src="data:image/webp;base64,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" alt=""><span><input type="radio" name="background" id="bgblack" value="black"> Black</span></label><label class="swatch"><img width="80" height="120" src="data:image/webp;base64,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" alt=""><span><input type="radio" name="background" id="bgwhite" value="white"> White</span></label></div></fieldset>
-          <label for="bodyMode">Character view</label><select id="bodyMode"><option value="full">Full body</option><option value="half">Half body</option></select>
-          <label><input id="showSubs" type="checkbox"> Show subtitles</label>
+          <div class="settingRow"><label for="bodyMode">Character view</label><select id="bodyMode"><option value="full">Full body</option><option value="half">Half body</option></select>
+          </div><div class="settingRow"><label for="showSubs">Show subtitles</label><input class="switch" id="showSubs" type="checkbox"></div>
           <div class="actions"><button class="btn primary" id="applyControls">Save appearance</button></div></section>
         <section id="audio" hidden><div class="box"><label for="volume">Speaker volume <output id="volPercent"></output></label><input id="volume" type="range" min="0" max="100" step="1"><button class="btn primary" id="applyVolume">Save volume</button></div></section>
         <section id="advanced" hidden>
@@ -211,6 +212,7 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
           "login",
           "done",
         ];
+      let writes=0, writing=0, reconnecting=false;
       let state = null,
         token = "",
         clearKey = false,
@@ -248,6 +250,16 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
         } else $("legacy").removeAttribute("src");
       }
       $("mobileNav").onchange=()=>page($("mobileNav").value);
+      let frameObserver;
+      $("legacy").onload=()=>{
+        frameObserver?.disconnect();
+        const content=$("legacy").contentDocument?.querySelector(".page");
+        if (!content) return;
+        frameObserver=new ResizeObserver(()=>{
+          $("legacy").style.height=Math.ceil(content.getBoundingClientRect().height+36)+"px";
+        });
+        frameObserver.observe(content);
+      };
       function stamp(t) {
         if (!t) return "Awaiting sync";
         return new Intl.DateTimeFormat(undefined, {
@@ -257,6 +269,7 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
         }).format(new Date(t * 1000));
       }
       async function api(payload) {
+        if (payload) {++writes; ++writing;}
         const h = { "X-Aura-Request": "1" };
         if (token) h.Authorization = "Bearer " + token;
         if (payload) h["Content-Type"] = "application/json";
@@ -278,7 +291,7 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
         if (!r.ok)
           throw Error((await r.text()).slice(0, 160) || "Request failed");
         return await r.json();
-        } finally { clearTimeout(timeout); }
+        } finally { clearTimeout(timeout); if (payload) --writing; }
       }
       const dirtyControls = new Set();
       function appearance() {
@@ -312,6 +325,10 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
         } catch(e) { message(e.message,true); }
         finally { button.disabled=false; }
       };
+      const edited = new Set();
+      for (const group of ["weather", "time"]) {
+        $(group).addEventListener("input",()=>edited.add(group));
+      }
       function render(s, fill) {
         state = s;
         $("returnAura").hidden=s.home;
@@ -383,7 +400,7 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
         $("wifiHome").hidden = !s.home;
         $("advancedHome").hidden = !s.home;
         $("pairBox").hidden = s.home;
-        if (fill) {
+        if (fill===true || !edited.has("weather")) {
           $("enabled").checked = s.enabled;
           $("city").value = s.city;
           $("country").value = s.country;
@@ -394,6 +411,8 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
           $("key").value = "";
           clearKey = false;
           selection = s.lat === undefined ? null : { lat: s.lat, lon: s.lon };
+        }
+        if (fill===true || !edited.has("time")) {
           $("automatic").checked = s.automatic;
           $("zone").value = s.zone;
           $("format").value = s.h24 ? "24" : "12";
@@ -417,16 +436,21 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
         }
       }
       async function refresh(fill = false) {
-        if (inFlight) return;
+        if (inFlight || writing) return;
         inFlight = true;
         try {
           const old = state;
-          render(await api(), fill || !old);
+          const generation=writes;
+          const snapshot=await api();
+          if (generation!==writes) return;
+          render(snapshot, fill || !old);
+          if (reconnecting) {message(""); reconnecting=false;}
           if (!old) {
             message("");
             page("overview");
           }
         } catch (e) {
+          reconnecting=true;
           $("connection").textContent=section==="login"?"Locked":"Disconnected";
           $("connection").classList.remove("online");
           message(e.message, true);
@@ -438,7 +462,9 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
         btn.disabled = true;
         btn.classList.add("busy");
         try {
-          render(await api(payload), fill);
+          const saved=await api(payload);
+          if (fill) edited.delete(payload.action);
+          render(saved, false);
           message(
             ["test", "search", "sync"].includes(payload.action)
               ? "Request submitted. Check service status for the result."
@@ -481,6 +507,7 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
         $("reveal").textContent = show ? "Hide" : "Show";
       };
       $("clear").onclick = () => {
+        edited.add("weather");
         clearKey = true;
         $("key").value = "";
         $("key").placeholder = "Cleared on save";
@@ -541,6 +568,7 @@ dl{margin:0}dl div{display:flex;justify-content:space-between;gap:14px;padding:9
         $("connection").textContent = "Wi-Fi configured";
       } else {
         page("overview");
+        message("Reading device settings…");
         refresh(true);
         setInterval(() => {
           if (section !== "login" && !document.hidden) refresh();

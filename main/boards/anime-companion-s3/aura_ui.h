@@ -41,6 +41,7 @@ public:
             Clear();
         }
     }
+    bool Visible() const { return assistant || !text.empty(); }
     size_t Buffered() const { return text.size() + pending_.size(); }
     void Clear() {
         text.clear();
@@ -73,7 +74,7 @@ public:
         auto space = capacity - Buffered();
         if (space < 5)
             return;
-        if (assistant || !pending_.empty()) {
+        if ((assistant && !text.empty()) || !pending_.empty()) {
             pending_ += ' ';
             --space;
         }
@@ -112,11 +113,9 @@ public:
         }
         MeasureWindow(width);
         const int speed = Buffered() > 800 ? 50 : 45;
-        pos_ -= (now - last_) * speed;
+        if (!text.empty())
+            pos_ -= (now - last_) * speed;
         last_ = now;
-        // Keep the tail readable if playback catches up with sentence delivery.
-        if ((!ended_ || playing) && pending_.empty())
-            pos_ = std::max(pos_, int64_t(std::min(10, 280 - width_)) * 1000);
         x_ = int(pos_ / 1000);
         if (text.size() > 128 && x_ < 0) {
             const size_t n = Prefix(text, 96);
@@ -129,19 +128,28 @@ public:
                 x_ = int(pos_ / 1000);
             }
         }
-        if (ended_ && !playing && pending_.empty() && x_ + width_ <= 0) {
-            if (fade_ < 0) {
-                fade_ = now;
-                fade_alpha_ = 255;
+        if (pending_.empty() && (text.empty() || x_ + width_ <= 0)) {
+            if (ended_ && !playing) {
+                if (fade_ < 0) {
+                    fade_ = now;
+                    fade_alpha_ = 255;
+                }
+                if (now - fade_ >= 500)
+                    Clear();
+            } else if (!text.empty()) {
+                // The last run has exited. Keep the strip up during a delivery gap.
+                // Reserve the entry edge for the next run while no glyph is visible.
+                text.clear();
+                ++revision;
+                pos_ = 310000;
+                x_ = 310;
             }
-            if (now - fade_ >= 500)
-                Clear();
         }
     }
     int X() const { return x_; }
     void FontChanged() { ++revision; }
     int Opacity(int64_t now) const {
-        if (text.empty())
+        if (!Visible())
             return 0;
         if (fade_ >= 0) {
             const int duration = assistant ? 500 : 240;
@@ -166,6 +174,8 @@ private:
         while (n && (uint8_t(src[n]) & 0xc0) == 0x80)
             --n;
         auto start = dest.size();
+        if (dest.capacity() < dest.size() + n && dest.size() + n > capacity / 2)
+            dest.reserve(capacity);
         dest.append(src, n);
         for (size_t i = start; i < dest.size(); ++i)
             if (dest[i] == '\n' || dest[i] == '\r' || dest[i] == '\t')

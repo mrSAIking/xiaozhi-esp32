@@ -19,25 +19,43 @@ int main() {
     assert(c.X() <= before && c.X() >= before - 1 && c.text == "First. Second.");
     assert(c.Opacity(16301) == 255);
     c.Finish();
-    for (int t = 16400; t < 40000; t += 40)
+    int faded_frames = 0, previous = 255;
+    for (int t = 16400; t < 40000; t += 40) {
         tick(t, false);
+        int alpha = c.Opacity(t);
+        assert(alpha <= previous);
+        if (alpha > 0 && alpha < 255)
+            ++faded_frames;
+        previous = alpha;
+    }
+    assert(faded_frames >= 11 && faded_frames <= 13);
     assert(c.text.empty());
-    c.Submit(false, "New?", 41000);
+    // A large inter-packet gap can exhaust the visible text. The strip stays
+    // opaque until more data arrives, without a second turn transition.
+    c.Submit(true, "A", 40000);
+    tick(40000, true);
+    tick(48000, true);
+    assert(c.text.empty() && c.Visible() && c.Opacity(48000) == 255);
+    c.Submit(true, "B", 48020);
+    tick(48020, true);
+    assert(c.text == "B" && c.X() > 300);
+    c.Clear();
+    c.Submit(false, "New?", 49000);
     std::string long_text;
     for (int i = 0; i < 6000; i++)
         long_text += "界";
-    c.Submit(true, long_text.c_str(), 41000);
-    tick(41000, true);
-    tick(41400, true);
+    c.Submit(true, long_text.c_str(), 49000);
+    tick(49000, true);
+    tick(49400, true);
     assert(c.Buffered() <= c.capacity && c.text.size() % 3 == 0);
-    bool rolled = false;
-    for (int t = 41440; t < 190000; t += 40) {
-        auto old = c.text.size();
+    const size_t initial = c.Buffered();
+    for (int t = 49440; t < 190000; t += 40) {
         tick(t, true);
-        rolled |= c.text.size() < old || c.X() > -20;
+        for (size_t i = 0; i < c.text.size(); i += 3)
+            assert(c.text.compare(i, 3, "界") == 0);
         assert(c.text.size() % 3 == 0 && c.Buffered() <= c.capacity);
     }
-    assert(rolled);
+    assert(c.Buffered() + 384 < initial);
     c.Clear();
     assert(c.text.empty() && !c.Buffered());
     c.Submit(false, "次の質問", 200000);

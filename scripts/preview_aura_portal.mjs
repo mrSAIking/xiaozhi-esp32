@@ -24,10 +24,11 @@ const snapshot = {
   cities: [],
   weather_status: "Waiting for home Wi-Fi",
 };
-let home = false;
+let home = false, disconnected = false;
 const server = createServer(async (req, res) => {
   const route = new URL(req.url, "http://localhost").pathname;
   if (route === "/api/aura") {
+    if(disconnected){res.writeHead(503);res.end("Connection unavailable");return;}
     if (home && req.headers.authorization !== "Bearer demo") {
       res.writeHead(401);
       res.end();
@@ -181,6 +182,12 @@ try {
   await until(
     "$('legacy').contentDocument?.getElementById('advanced-tab')?.classList.contains('active')",
   );
+  disconnected=true;
+  await evaluate("refresh()");
+  await until("$('connection').textContent==='Disconnected'");
+  disconnected=false;
+  await evaluate("refresh()");
+  await until("$('connection').textContent==='Setup hotspot' && $('feedback').textContent===''");
   home = true;
   await call("Page.navigate", { url });
   await until("document.getElementById('login')?.hidden===false");

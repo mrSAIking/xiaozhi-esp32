@@ -54,6 +54,8 @@ def subtitles(exe, motion, target):
             for i,char in enumerate(line):
                 draw.text((int(x)+i*advance,21),char,font=font,anchor="lm",
                           fill="white" if answer=="1" else "#a8c7fa")
+            draw.rectangle((0,0,9,41),fill="#101012")
+            draw.rectangle((310,0,319,41),fill="#101012")
             im.paste(Image.blend(area,strip,int(opacity)/255),(0,438))
         frames.append(im.quantize(colors=256))
     frames[0].save(target, save_all=True, append_images=frames[1:], duration=80, loop=0)

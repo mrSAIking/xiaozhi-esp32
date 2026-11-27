@@ -357,7 +357,12 @@ void AvatarDisplay::CreateOverlays() {
     lv_obj_set_style_bg_color(caption_bar_, lv_color_hex(0x101012), 0);
     lv_obj_set_style_bg_opa(caption_bar_, 250, 0);
     lv_obj_add_flag(caption_bar_, LV_OBJ_FLAG_HIDDEN);
-    caption_label_ = lv_label_create(caption_bar_);
+    auto* viewport = lv_obj_create(caption_bar_);
+    lv_obj_remove_style_all(viewport);
+    lv_obj_remove_flag(viewport, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(viewport, 300, 42);
+    lv_obj_center(viewport);
+    caption_label_ = lv_label_create(viewport);
     lv_label_set_text(caption_label_, "");
     lv_obj_set_width(caption_label_, LV_SIZE_CONTENT);
     lv_obj_align(caption_label_, LV_ALIGN_LEFT_MID, 0, 0);
@@ -385,10 +390,18 @@ void AvatarDisplay::UpdateOverlays(int64_t ms, bool listening, bool active) {
         if (font_changed)
             captions_.FontChanged();
         captions_.Tick(ms, active, [&](const char* str, size_t bytes) {
-            return lv_text_get_width(str, bytes, lv_obj_get_style_text_font(caption_label_, 0),
-                                     lv_obj_get_style_text_letter_space(caption_label_, 0));
+            lv_point_t size{};
+            std::string prefix;
+            if (str[bytes]) {
+                prefix.assign(str, bytes);
+                str = prefix.c_str();
+            }
+            lv_text_get_size(&size, str, lv_obj_get_style_text_font(caption_label_, 0),
+                             lv_obj_get_style_text_letter_space(caption_label_, 0), 0, LV_COORD_MAX,
+                             LV_TEXT_FLAG_NONE);
+            return size.x;
         });
-        visible = !captions_.text.empty();
+        visible = captions_.Visible();
         if (caption_revision_ != captions_.revision || font_changed) {
             caption_revision_ = captions_.revision;
             if (!visible) {
@@ -403,7 +416,7 @@ void AvatarDisplay::UpdateOverlays(int64_t ms, bool listening, bool active) {
         if (!visible)
             return;
         alpha = captions_.Opacity(ms);
-        x = captions_.X();
+        x = captions_.X() - 10;
     }
     if (alpha != opacity_) {
         lv_obj_set_style_opa(caption_bar_, alpha, 0);
