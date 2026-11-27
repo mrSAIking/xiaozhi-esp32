@@ -3,6 +3,7 @@
 #include <mutex>
 #include "appearance.h"
 #include "aura_search.h"
+#include "aura_music.h"
 #include "aura_service.h"
 #include "esp_http_server.h"
 #include "esp_netif.h"
@@ -70,6 +71,7 @@ esp_err_t Api(httpd_req_t* r) {
             return Deny(r, "401 Unauthorized",
                         "Enter the access code created during hotspot setup.");
     }
+    cJSON* page=nullptr;
     if (r->method == HTTP_POST) {
         if (Header(r, "X-Aura-Request") != "1" || Header(r, "Content-Type") != "application/json")
             return Deny(r, "403 Forbidden", "Invalid request");
@@ -88,7 +90,11 @@ esp_err_t Api(httpd_req_t* r) {
             return Deny(r, "400 Bad Request", "Invalid JSON");
         auto action = cJSON_GetObjectItemCaseSensitive(j, "action");
         const char* error = nullptr;
-        if (cJSON_IsString(action) && !strcmp(action->valuestring, "volume")) {
+        if(cJSON_IsString(action) && !strcmp(action->valuestring,"music_list")){
+            auto s=cJSON_GetObjectItem(j,"query"),n=cJSON_GetObjectItem(j,"offset");
+            page=music::List(cJSON_IsString(s)?s->valuestring:"",cJSON_IsNumber(n)?n->valueint:0,6);
+        }else if(cJSON_IsString(action) && !strncmp(action->valuestring,"music_",6))error=music::Command(j);
+        else if (cJSON_IsString(action) && !strcmp(action->valuestring, "volume")) {
             auto volume = cJSON_GetObjectItemCaseSensitive(j, "volume");
             if (!cJSON_IsNumber(volume) || volume->valuedouble != volume->valueint ||
                 volume->valueint < 0 || volume->valueint > 100)
@@ -111,9 +117,12 @@ esp_err_t Api(httpd_req_t* r) {
         if (error)
             return Deny(r, "400 Bad Request", error);
     }
-    auto* state = aura::Snapshot(home);
+    auto* state = page?page:aura::Snapshot(home);
+    if(!page){
+    cJSON_AddItemToObject(state,"music",music::Status());
     aura::AddAppearance(state);
     aura::SearchSnapshot(state, home);
+    }
     char* raw = cJSON_PrintUnformatted(state);
     cJSON_Delete(state);
     if (!raw)
@@ -212,6 +221,7 @@ void StartControl() { xTaskCreate(Manage, "aura-control", 4096, nullptr, 1, null
 void Network(bool connected) {
     desired = connected;
     Online(connected);
+    music::Network(connected);
 }
 void StopHome() {
     desired = false;

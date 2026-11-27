@@ -101,6 +101,7 @@ enum AudioTaskType {
 struct AudioTask {
     AudioTaskType type;
     std::vector<int16_t> pcm;
+    bool music = false;
     uint32_t timestamp = 0;
     uint32_t playback_id = 0;
     uint32_t media_position_ms = 0;
@@ -129,6 +130,11 @@ public:
     bool IsVoiceDetected() const { return voice_detected_; }
     bool IsIdle();
     bool IsPlaybackIdle();
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    void OwnMusicOutput(bool own);
+    bool QueueMusic(std::vector<int16_t>&& pcm);
+    uint32_t MusicTimeMs();
+#endif
 #if CONFIG_AUDIO_PLAYBACK_METER
     float GetPlaybackRms(int64_t now_us) const { return playback_meter_.Read(now_us); }
 #endif
@@ -197,6 +203,11 @@ private:
     FixedQueue<AudioTask, MAX_ENCODE_TASKS_IN_QUEUE> audio_encode_queue_;
     FixedQueue<AudioTask, MAX_PLAYBACK_TASKS_IN_QUEUE> audio_playback_queue_;
     bool decode_in_flight_ = false;
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    bool music_owned_ = false;
+    uint64_t music_samples_ = 0;
+    int64_t music_write_us_ = 0;
+#endif
     bool output_in_flight_ = false;
     bool playback_drained_notified_ = true;
     uint32_t playback_generation_ = 0;

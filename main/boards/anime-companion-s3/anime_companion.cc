@@ -1,4 +1,5 @@
 #include "appearance.h"
+#include "aura_music.h"
 #include "application.h"
 #include "assets/lang_config.h"
 #include "aura_service.h"
@@ -62,7 +63,9 @@ public:
         display_.SetTextMode(subtitles_);
         display_.SetHalfBody(half_body_);
         ESP_LOGI("AnimeBoard", "Restored avatar mode: %s", half_body_ ? "half_body" : "full_body");
+        boot_.OnPressDown([this]{if(music::Stop())music_press_=true;});
         boot_.OnClick([this]() {
+            if(music_press_.exchange(false)||music::Stop())return;
             auto& app = Application::GetInstance();
             if (app.GetDeviceState() == kDeviceStateStarting) {
                 app.Schedule([this] { EnterWifiConfigMode(); });
@@ -71,6 +74,7 @@ public:
             }
         });
         boot_.OnDoubleClick([this]() {
+            if(music_press_.exchange(false)||music::Stop())return;
             Application::GetInstance().Schedule([this]() {
                 if (SetAvatarMode(!half_body_) == ESP_OK)
                     display_.PreviewMode();
@@ -100,6 +104,7 @@ public:
                 return true;
             });
         aura::Init();
+        music::Init();
         aura::StartControl();
         McpServer::GetInstance().AddTool(
             "self.time.get_current", "Read synchronized local date, weekday, time and zone.",
@@ -272,6 +277,7 @@ private:
         subtitles_ = value;
         display_.SetTextMode(value);
     }
+    std::atomic<bool> music_press_{false};
     void PollButtons() {
         aura::ControlButton keys[3];
         const gpio_num_t pins_used[] = {pins::volume_up, pins::volume_down, pins::settings};
@@ -284,6 +290,7 @@ private:
                     continue;
                 if (i == 2) {
                     if (edge == aura::Edge::Press && !settings_queued_.exchange(true)) {
+                        music::Stop();
                         Application::GetInstance().Schedule([this] {
                             if (IsInWifiConfigMode())
                                 ReturnToStation();

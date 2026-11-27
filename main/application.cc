@@ -1,4 +1,7 @@
 #include "application.h"
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+#include "aura_music.h"
+#endif
 #include "assets.h"
 #include "assets/lang_config.h"
 #include "audio_codec.h"
@@ -660,12 +663,18 @@ void Application::InitializeProtocol() {
                 StartNotification(std::move(url), std::move(subtitles));
             });
         } else if (strcmp(type->valuestring, "tts") == 0) {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+            if(music::active) return;
+#endif
             auto state = cJSON_GetObjectItem(root, "state");
             if (!cJSON_IsString(state)) {
                 return;
             }
             if (strcmp(state->valuestring, "start") == 0) {
                 Schedule([this]() {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+                    if(music::active)return;
+#endif
                     aborted_ = false;
                     SetDeviceState(kDeviceStateSpeaking);
                 });
@@ -944,6 +953,9 @@ void Application::HandleStopListeningEvent() {
 }
 
 void Application::HandleWakeWordDetectedEvent() {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    music::Stop();
+#endif
     if (!protocol_) {
         return;
     }
@@ -1478,6 +1490,16 @@ void Application::SetAecMode(AecMode mode) {
 void Application::PlaySound(const std::string_view& sound) { audio_service_.PlaySound(sound); }
 
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+void Application::PrepareMusic(){
+    if(!music::active)return;
+    auto s=GetDeviceState();
+    if(s==kDeviceStateSpeaking)AbortSpeaking(kAbortReasonNone);
+    if(s==kDeviceStateNotifying)StopNotification();
+    if(s==kDeviceStateListening && protocol_)protocol_->SendStopListening();
+    pending_listening_start_=false;
+    Board::GetInstance().GetDisplay()->CancelConversationText();
+    if(s!=kDeviceStateIdle)SetDeviceState(kDeviceStateIdle);
+}
 bool Application::PrepareForWifiSettings() {
     const auto state = GetDeviceState();
     if (state == kDeviceStateStarting) return true;

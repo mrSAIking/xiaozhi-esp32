@@ -1,4 +1,7 @@
 #include "avatar_display.h"
+#include "aura_music.h"
+#include "music_disc.h"
+#include "board.h"
 
 #include <esp_heap_caps.h>
 #include <esp_lvgl_port.h>
@@ -297,6 +300,10 @@ int AvatarDisplay::Render(avatar::Rect area) {
 }
 
 void AvatarDisplay::RefreshComplete() {
+    if(player_start_us_){
+        player_cost_=int((esp_timer_get_time()-player_start_us_)/1000);
+        player_start_us_=0;
+    }
     if (!pose_start_us_)
         return;
     const auto now = esp_timer_get_time();
@@ -450,6 +457,8 @@ void AvatarDisplay::Tick() {
         lv_obj_add_flag(notice_, LV_OBJ_FLAG_HIDDEN);
         notice_until_ = 0;
     }
+    if(music::active){PlayerTick(ms);return;}
+    if(player_ && lv_screen_active()==player_)player_next_=0;
     const bool can_preview = state == kDeviceStateStarting ||
                              state == kDeviceStateWifiConfiguring ||
                              state == kDeviceStateActivating;
@@ -555,4 +564,55 @@ void AvatarDisplay::Tick() {
         budget.Charge(pixels, esp_timer_get_time() - before);
         ++region_;
     }
+}
+
+void AvatarDisplay::PlayerTick(int64_t ms){
+    if(!player_){
+        player_=lv_obj_create(nullptr);
+        lv_obj_set_style_bg_color(player_,lv_color_hex(0x09090e),0);
+        lv_obj_remove_flag(player_,LV_OBJ_FLAG_SCROLLABLE);
+        auto* crop=lv_obj_create(player_);lv_obj_remove_style_all(crop);
+        lv_obj_set_size(crop,120,42);lv_obj_set_pos(crop,12,10);
+        lv_obj_remove_flag(crop,LV_OBJ_FLAG_SCROLLABLE);
+        auto* logo=lv_image_create(crop);lv_image_set_src(logo,&boot_image_);
+        lv_image_set_pivot(logo,0,0);lv_image_set_scale(logo,96);lv_obj_set_pos(logo,0,-68);
+        auto label=[&](int x,int y,int width,uint32_t color){
+            auto* l=lv_label_create(player_);lv_obj_set_width(l,width);lv_obj_set_pos(l,x,y);
+            lv_obj_set_style_text_color(l,lv_color_hex(color),0);lv_label_set_text(l,"");return l;};
+        lv_label_set_text(label(185,26,127,0xbb92fb),"NOW PLAYING");
+        auto* pixels=(uint16_t*)heap_caps_aligned_alloc(64,208*208*2,MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);
+        if(pixels){
+            for(int y=0;y<208;y++)for(int x=0;x<208;x++)pixels[y*208+x]=music::DiscPixel(x,y);
+            disc_.header.magic=LV_IMAGE_HEADER_MAGIC;disc_.header.cf=LV_COLOR_FORMAT_RGB565;
+            disc_.header.w=disc_.header.h=208;disc_.header.stride=416;disc_.data_size=208*416;disc_.data=(uint8_t*)pixels;
+            auto* cd=lv_image_create(player_);lv_image_set_src(cd,&disc_);lv_obj_set_pos(cd,56,64);
+        }
+        for(int i=0;i<2;i++){
+            flare_[i]=lv_obj_create(player_);lv_obj_remove_style_all(flare_[i]);
+            lv_obj_set_size(flare_[i],i?6:13,i?6:13);lv_obj_set_style_radius(flare_[i],LV_RADIUS_CIRCLE,0);
+            lv_obj_set_style_bg_color(flare_[i],lv_color_hex(i?0xdebaff:0xffffff),0);lv_obj_set_style_bg_opa(flare_[i],LV_OPA_COVER,0);
+        }
+        title_=label(20,292,280,0xf4f2fc);lv_label_set_long_mode(title_,LV_LABEL_LONG_SCROLL_CIRCULAR);
+        artist_=label(20,322,280,0xb4acbf);progress_=lv_bar_create(player_);
+        lv_obj_set_pos(progress_,20,366);lv_obj_set_size(progress_,280,5);
+        lv_obj_set_style_bg_color(progress_,lv_color_hex(0xa855f7),LV_PART_INDICATOR);
+        times_=label(20,378,280,0xd0cbd8);player_state_=label(20,411,280,0xc084fc);
+        lv_label_set_text(label(20,452,280,0xaba5b7),"Press BOOT to stop");
+    }
+    if(lv_screen_active()!=player_){lv_screen_load(player_);player_next_=0;}
+    if(ms<player_next_)return;
+    auto v=music::Player();int interval=std::clamp(player_cost_*3,100,400);
+    player_next_=ms+interval;player_start_us_=esp_timer_get_time();
+    auto set=[](lv_obj_t* l,const char* s){if(strcmp(lv_label_get_text(l),s))lv_label_set_text(l,s);};
+    set(title_,v.title.c_str());set(artist_,v.artist.c_str());
+    if(v.state=="Playing")disc_angle_=std::fmod(disc_angle_+interval*.0012f,6.2831853f);
+    for(int i=0;i<2;i++){
+        float phase=disc_angle_+i*2.45f;int r=i?48:78;
+        lv_obj_set_pos(flare_[i],160+int(std::cos(phase)*r)-(i?3:6),168+int(std::sin(phase)*r)-(i?3:6));
+    }
+    int seconds=v.ms/1000;char total[20]="--:--",buf[80];
+    if(v.duration)snprintf(total,sizeof(total),"%02d:%02d",v.duration/60,v.duration%60);
+    snprintf(buf,sizeof(buf),"%02d:%02d  /  %s",seconds/60,seconds%60,total);set(times_,buf);
+    lv_bar_set_value(progress_,v.duration?std::min(100,int(100LL*seconds/v.duration)):0,LV_ANIM_OFF);
+    snprintf(buf,sizeof(buf),"%s    |    VOL %d%%",v.state.c_str(),Board::GetInstance().GetAudioCodec()->output_volume());set(player_state_,buf);
 }

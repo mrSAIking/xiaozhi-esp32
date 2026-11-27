@@ -90,6 +90,11 @@ const portalAdvanced = (() => {
                 control.spellcheck = false;
                 control.autocapitalize = 'none';
                 if (!isTextarea) control.type = widget === 'number' ? 'number' : 'text';
+                if(group.id==="tavily" && field.id==="api_key"){
+                    control.autocomplete="off"; control.autocapitalize="off";
+                    control.dataset.lpignore="true";control.dataset.bwignore="";control.setAttribute("data-1p-ignore","");
+                    control.style.webkitTextSecurity="disc";
+                }
                 control.value = value ?? '';
                 control.required = !!field.required;
                 if (widget === 'number') {

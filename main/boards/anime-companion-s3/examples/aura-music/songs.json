@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "songs": [
+    {
+      "id": "studio",
+      "title": "Studio tone",
+      "artist": "Project Aura",
+      "duration_seconds": 4,
+      "file": "songs/studio.mp3"
+    },
+    {
+      "id": "evening",
+      "title": "Evening test",
+      "artist": "Project Aura",
+      "duration_seconds": 8,
+      "file": "songs/evening.mp3"
+    }
+  ]
+}

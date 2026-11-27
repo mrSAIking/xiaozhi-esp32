@@ -43,12 +43,16 @@ jobs:
           source "$IDF_PATH/export.sh"
           g++ -O2 -std=c++17 -Imain/boards/anime-companion-s3 scripts/anime_preview.cc -o /tmp/avatar-preview
           python scripts/anime_preview.py /tmp/avatar-preview previews
+          g++ -O2 -std=c++17 -Imain/boards/anime-companion-s3 scripts/music_disc_preview.cc -o /tmp/music-disc
+          /tmp/music-disc /tmp/music.rgb565
+          python scripts/music_player_preview.py /tmp/music.rgb565 previews
       - uses: actions/upload-artifact@v4
         if: matrix.spi_mhz == 10
         with:
           name: desktop-previews-${{ github.sha }}
           path: |
             previews/*.gif
+            previews/music-player-preview.png
             main/boards/anime-companion-s3/web/*preview.png
           if-no-files-found: error
       - name: Build ESP32-S3 N16R8 firmware

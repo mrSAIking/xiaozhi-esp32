@@ -37,6 +37,12 @@ private:
     bool Lock(int) override;
     void Tick();
     void CreateOverlays();
+    void PlayerTick(int64_t ms);
+    lv_obj_t *player_=nullptr,*title_=nullptr,*artist_=nullptr,*progress_=nullptr,*times_=nullptr,*player_state_=nullptr,*flare_[2]{};
+    lv_image_dsc_t disc_{};
+    int64_t player_next_=0, player_start_us_=0;
+    int player_cost_=0;
+    float disc_angle_=0;
     void UpdateOverlays(int64_t ms, bool listening, bool active);
     void Patch(const avatar::Rect& rect, int offset);
     void LoadMode(int selected, int64_t ms);

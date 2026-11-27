@@ -3,9 +3,17 @@
 #include <iostream>
 #include <thread>
 #include "aura_search.h"
+#include "music_catalog.h"
 #include "aura_service.cc"
 using namespace aura;
 int main() {
+    const std::string base="https://raw.githubusercontent.com/example/library/main/list/songs.json";
+    std::vector<music::Song> tracks;
+    auto testCatalog=[&](const char* file){auto j=parse(std::string(R"({"version":1,"songs":[{"id":"a","title":"Test","artist":"Aura","file":")")+file+R"("}]})");return music::catalog(base,j.get(),tracks);};
+    assert(testCatalog("songs/test.mp3") && tracks.front().url==base.substr(0,base.rfind('/')+1)+"songs/test.mp3");
+    assert(music::matches(tracks.front(),"aura")&&!music::matches(tracks.front(),"missing"));
+    assert(!testCatalog("../test.mp3") && !testCatalog("songs/%2E%2E/test.mp3") && !testCatalog("https://raw.githubusercontent.com/other/library/main/test.mp3"));
+    assert(!music::catalog(base,nullptr,tracks));
     Init();
     auto cmd = [](std::string raw, bool home = false) {
         auto j = parse(raw);

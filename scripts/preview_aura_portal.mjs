@@ -9,6 +9,7 @@ import { setTimeout as pause } from "node:timers/promises";
 const web = "main/boards/anime-companion-s3/web/",
   vendor = "components/78__esp-wifi-connect/assets/";
 const snapshot = {
+  music:{enabled:true,url:"https://raw.githubusercontent.com/example/aura-music/main/songs.json",library:"Cached library",state:"Idle",active:false,count:2,revision:1,synced:0,title:"",ms:0},
   animation:{breath_on:true,hand_on:true,breath_ds:36,hand_ds:40,breath_pct:100,hand_pct:100},animation_saved:true,
   internal_free:201240,psram_free:6870280,build:"8c27f1ba3dca",
   home: false, white:false, half:false, subtitles:false, volume:65,
@@ -42,6 +43,13 @@ const server = createServer(async (req, res) => {
       let raw = "";
       for await (const part of req) raw += part;
       const p = JSON.parse(raw);
+      if(p.action==="music_list"){
+        const songs=[{id:"a",title:"Studio tone",artist:"Project Aura",duration:4},{id:"b",title:"Evening test",artist:"Project Aura",duration:8}]
+          .filter(t=>t.title.toLowerCase().includes(p.query.toLowerCase()));
+        res.setHeader("content-type","application/json");res.end(JSON.stringify({songs,total:songs.length}));return;
+      }
+      if(p.action==="music_play"){snapshot.music.active=true;snapshot.music.state="Playing";}
+      if(p.action==="music_stop"){snapshot.music.active=false;snapshot.music.state="Idle";}
       if (p.action === "appearance" || p.action==="volume") Object.assign(snapshot,p);
       if(["animation","preview_animation"].includes(p.action)){
         const {action,...settings}=p;snapshot.animation=settings;
@@ -172,7 +180,7 @@ try {
     assert.ok(
       await evaluate("document.documentElement.scrollWidth<=innerWidth"),
     );
-    for(const id of ["overview","animation","appearance","audio","wifi","weather","webSearch","services","time","advanced"]){
+    for(const id of ["overview","animation","appearance","audio","wifi","music","weather","webSearch","services","time","advanced"]){
       await evaluate("page("+JSON.stringify(id)+")");
       if(id==="wifi" || id==="advanced") await until("$('legacy').contentDocument?.getElementById('ssid')!=null");
       await pause(160);
@@ -226,6 +234,13 @@ try {
   await until("document.getElementById('login')?.hidden===false");
   await evaluate("$('access').value='demo';$('unlock').click()");
   await until("state?.home===true");
+  await evaluate("page('music')");
+  await until("$('songList').querySelector('button') && !$('songList').querySelector('button').disabled");
+  await evaluate("$('songList').querySelector('button').click()");
+  await until("state.music.active");
+  await evaluate("$('musicStop').click()");
+  await until("!state.music.active");
+  assert.equal(await evaluate("['key','searchKey'].every(k=>$(k).type==='text'&&$(k).autocomplete==='off'&&!$(k).spellcheck)&&$('access').type==='password'"),true);
   await evaluate("page('webSearch');$('searchKey').value='fixture-only';$('saveSearch').click()");
   await until("state.tavily.key_saved && $('searchKey').value===''");
   assert.equal(await evaluate("JSON.stringify(state).includes('fixture-only')"),false);
