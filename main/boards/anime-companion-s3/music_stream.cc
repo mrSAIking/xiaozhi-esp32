@@ -50,7 +50,7 @@ const char* download(const std::string& url, bool song, const std::atomic<bool>&
         return "Unexpected file type";
     if (!song && length > 65536)
         return "Catalog exceeds 64 KiB";
-    std::array<char, 2048> chunk;
+    std::vector<char> chunk(2048);
     uint64_t total = 0;
     while (!cancel) {
         int n = esp_http_client_read(h, chunk.data(), chunk.size());
@@ -194,7 +194,7 @@ const char* Stream(const std::string& url, AudioService& audio, const std::atomi
         return "Stream task unavailable";
     bool priming = true, first = true, played = false;
     uint32_t skip = 0;
-    std::array<uint8_t, 2048> frame;
+    std::vector<uint8_t> frame(2048);
     const char* error = nullptr;
     while (!cancel) {
         bool done = p.done.load();

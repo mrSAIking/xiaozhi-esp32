@@ -1,6 +1,7 @@
 #include "avatar_display.h"
 #include "aura_music.h"
 #include "music_disc.h"
+#include <src/misc/cache/instance/lv_image_cache.h>
 #include "board.h"
 
 #include <esp_heap_caps.h>
