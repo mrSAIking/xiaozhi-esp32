@@ -13,6 +13,7 @@ public:
     void SetupUI() override;
     void SetTheme(Theme* theme) override;
     void SetHalfBody(bool half) { requested_mode_.store(half ? 1 : 0); }
+    void SetAnimation(uint32_t word) { motion_word_.store(word); }
     void SetWhite(bool value) { requested_white_.store(value); }
     void Volume(int percent);
     void SystemMessage(const char* title, const char* message);
@@ -71,8 +72,10 @@ private:
     int opacity_ = -1, ink_opacity_ = -1, caption_x_ = 0;
     bool listening_ = false;
     int region_ = 0;
+    std::atomic<uint32_t> motion_word_{avatar::AnimationSettings{}.Encode()};
+    avatar::LiveMotion motion_;
     avatar::Pose pose_{};
-    int64_t due_ms_ = 0, origin_ms_ = 0, sweep_start_us_ = 0;
+    int64_t due_ms_ = 0, sweep_start_us_ = 0;
     int64_t pose_start_us_ = 0, stats_start_us_ = 0;
     int frame_cost_ms_ = 0, completed_ = 0;
     unsigned transfer_bytes_ = 0;

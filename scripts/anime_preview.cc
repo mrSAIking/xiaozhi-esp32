@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
         }
         throw std::runtime_error("Subtitle track did not drain");
     }
-    if (argc != 12)
+    if (argc != 12 && argc != 13)
         return 2;
     const std::string dir = argv[1];
     const int mode = std::stoi(argv[2]);
@@ -48,6 +48,15 @@ int main(int argc, char** argv) {
                      std::stoi(argv[10])};
     auto src = Read(dir + "/base.rgb565", 320 * 480), frame = src;
     std::ofstream output(argv[11], std::ios::binary);
+    const std::string scenario = argc == 13 ? argv[12] : "default";
+    AnimationSettings settings;
+    settings.breath_on = scenario != "breathing-disabled";
+    settings.hand_on = scenario != "hand-disabled";
+    if (scenario == "fast-breathing")
+        settings.breath_ds = 20;
+    if (scenario == "slow-breathing")
+        settings.breath_ds = 80;
+    LiveMotion motion;
     int64_t pixels = 0;
     for (int i = 0; i < 225; ++i) {
         int t = i * 40;
@@ -59,7 +68,11 @@ int main(int argc, char** argv) {
                   Read(dir + "/eyes/eyes_" + eye_name + ".rgb565", eyes.w * eyes.h).data());
         Composite(frame.data(), mouth,
                   Read(dir + "/mouth/mouth_" + mouth_name + ".rgb565", mouth.w * mouth.h).data());
-        auto pose = MakePose(t, {3600, 3, 4000, 4500, mode ? 3 : 2});
+        if (scenario == "runtime-speed-change" && t == 4000) {
+            settings.breath_ds = 20;
+            settings.hand_ds = 75;
+        }
+        auto pose = motion.Step(t, settings, 3, mode ? 3 : 2);
         PoseRegions(mode, [&](Rect r) {
             auto dirty = RenderRegion(src.data(), frame.data(), mode, pose, r);
             if (dirty.w > 0)

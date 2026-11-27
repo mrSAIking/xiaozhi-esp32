@@ -5,6 +5,7 @@
 #include "avatar_display.h"
 #include "button.h"
 #include "control_button.h"
+#include "esp_app_desc.h"
 #include "wifi_manager.h"
 
 #include <cmath>
@@ -52,6 +53,11 @@ public:
         half_body_ = Settings(kAvatarSettings).GetBool(kHalfBodyKey);
         white_ = Settings(kAvatarSettings).GetBool("white");
         subtitles_ = Settings(kAvatarSettings).GetBool("subtitles");
+        saved_motion_ =
+            avatar::AnimationSettings::Decode(Settings(kAvatarSettings).GetInt("motion_v1", 0))
+                .Encode();
+        motion_word_ = saved_motion_;
+        display_.SetAnimation(motion_word_);
         display_.SetWhite(white_);
         display_.SetTextMode(subtitles_);
         display_.SetHalfBody(half_body_);
@@ -164,8 +170,57 @@ public:
             display_.Volume(volume);
         }
     }
+    const char* ApplyAnimation(const cJSON* j, bool save) {
+        auto get = [j](const char* k) { return cJSON_GetObjectItemCaseSensitive(j, k); };
+        auto number = [&](const char* k) {
+            auto v = get(k);
+            return cJSON_IsNumber(v) && v->valuedouble == v->valueint ? v->valueint : -1;
+        };
+        auto breath = get("breath_on"), hand = get("hand_on");
+        if (!cJSON_IsBool(breath) || !cJSON_IsBool(hand))
+            return "Invalid animation switches";
+        avatar::AnimationSettings value{bool(cJSON_IsTrue(breath)), bool(cJSON_IsTrue(hand)),
+                                        number("breath_ds"),        number("hand_ds"),
+                                        number("breath_pct"),       number("hand_pct")};
+        if (!value.Valid())
+            return "Animation values outside supported range";
+        const auto word = value.Encode();
+        std::lock_guard lock(controls_);
+        if (save && saved_motion_ != word) {
+            nvs_handle_t h;
+            if (nvs_open(kAvatarSettings, NVS_READWRITE, &h) != ESP_OK)
+                return "Cannot open animation settings";
+            auto err = nvs_set_i32(h, "motion_v1", int32_t(word));
+            if (err == ESP_OK)
+                err = nvs_commit(h);
+            nvs_close(h);
+            if (err != ESP_OK)
+                return "Cannot save animation settings";
+            saved_motion_ = word;
+        }
+        motion_word_ = word;
+        display_.SetAnimation(word);
+        return nullptr;
+    }
     void SnapshotAppearance(cJSON* s) {
         std::lock_guard lock(controls_);
+        auto a = avatar::AnimationSettings::Decode(motion_word_);
+        auto motion = cJSON_AddObjectToObject(s, "animation");
+        cJSON_AddBoolToObject(motion, "breath_on", a.breath_on);
+        cJSON_AddBoolToObject(motion, "hand_on", a.hand_on);
+        cJSON_AddNumberToObject(motion, "breath_ds", a.breath_ds);
+        cJSON_AddNumberToObject(motion, "hand_ds", a.hand_ds);
+        cJSON_AddNumberToObject(motion, "breath_pct", a.breath_pct);
+        cJSON_AddNumberToObject(motion, "hand_pct", a.hand_pct);
+        cJSON_AddBoolToObject(s, "animation_saved", motion_word_ == saved_motion_);
+        const auto* desc = esp_app_get_description();
+        char build[13];
+        for (int i = 0; i < 6; ++i)
+            snprintf(build + i * 2, 3, "%02x", desc->app_elf_sha256[i]);
+        cJSON_AddStringToObject(s, "build", build);
+        cJSON_AddNumberToObject(s, "internal_free",
+                                heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+        cJSON_AddNumberToObject(s, "psram_free", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
         cJSON_AddStringToObject(s, "board", BOARD_NAME);
         cJSON_AddBoolToObject(s, "white", white_);
         cJSON_AddBoolToObject(s, "half", half_body_);
@@ -316,6 +371,7 @@ private:
 
     Button boot_{pins::boot};
     AvatarDisplay display_;
+    uint32_t motion_word_ = 0, saved_motion_ = 0;
     std::recursive_mutex controls_;
     std::atomic<bool> settings_queued_{false}, half_body_{false};
     bool white_ = false, subtitles_ = false;
@@ -327,6 +383,9 @@ DECLARE_BOARD(AnimeCompanion);
 namespace aura {
 void SetSpeakerVolume(int volume) {
     static_cast<AnimeCompanion&>(Board::GetInstance()).SetSpeakerVolume(volume);
+}
+const char* ApplyAnimation(const cJSON* j, bool save) {
+    return static_cast<AnimeCompanion&>(Board::GetInstance()).ApplyAnimation(j, save);
 }
 void AddAppearance(cJSON* s) {
     static_cast<AnimeCompanion&>(Board::GetInstance()).SnapshotAppearance(s);

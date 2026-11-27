@@ -9,6 +9,8 @@ import { setTimeout as pause } from "node:timers/promises";
 const web = "main/boards/anime-companion-s3/web/",
   vendor = "components/78__esp-wifi-connect/assets/";
 const snapshot = {
+  animation:{breath_on:true,hand_on:true,breath_ds:36,hand_ds:40,breath_pct:100,hand_pct:100},animation_saved:true,
+  internal_free:201240,psram_free:6870280,build:"8c27f1ba3dca",
   home: false, white:false, half:false, subtitles:false, volume:65,
   enabled: false,
   city: "",
@@ -24,7 +26,7 @@ const snapshot = {
   cities: [],
   weather_status: "Waiting for home Wi-Fi",
 };
-let home = false, disconnected = false;
+let home = false, disconnected = false, persisted={...snapshot.animation}, saves=0;
 const server = createServer(async (req, res) => {
   const route = new URL(req.url, "http://localhost").pathname;
   if (route === "/api/aura") {
@@ -40,6 +42,11 @@ const server = createServer(async (req, res) => {
       for await (const part of req) raw += part;
       const p = JSON.parse(raw);
       if (p.action === "appearance" || p.action==="volume") Object.assign(snapshot,p);
+      if(["animation","preview_animation"].includes(p.action)){
+        const {action,...settings}=p;snapshot.animation=settings;
+        if(action==="animation"){persisted={...settings};saves++;}
+        snapshot.animation_saved=JSON.stringify(settings)===JSON.stringify(persisted);
+      }
       if (p.action === "time") {
         snapshot.zone = p.zone;
         snapshot.h24 = p.h24;
@@ -67,7 +74,13 @@ const server = createServer(async (req, res) => {
     return;
   }
   res.setHeader("content-type", "application/json");
-  res.end(route === "/scan" ? '{"aps":[]}' : "[]");
+  const fixtures={
+    "/scan":{aps:[{ssid:"Studio",rssi:-52,authmode:3},{ssid:"Guest",rssi:-67,authmode:3}]},
+    "/saved/list":["Studio"],
+    "/advanced/config":["Tavily search","OTA updates","Sleep settings"].map((title,i)=>({
+      id:"group"+i,title,fields:[{id:"enabled",label:"Enable",type:"boolean"}],values:{enabled:false}})),
+  };
+  res.end(JSON.stringify(fixtures[route] || []));
 });
 await new Promise((ok) => server.listen(0, "127.0.0.1", ok));
 const profile = await mkdtemp(path.join(tmpdir(), "aura-browser-"));
@@ -152,21 +165,28 @@ try {
     assert.ok(
       await evaluate("document.documentElement.scrollWidth<=innerWidth"),
     );
-    await evaluate("page('appearance')");
-    assert.ok(await evaluate("document.documentElement.scrollWidth<=innerWidth"));
-    await pause(150);
-    const shot = await call("Page.captureScreenshot", {
-      format: "png",
-      captureBeyondViewport: false,
-    });
-    await writeFile(
-      web + name + "-preview.png",
-      Buffer.from(shot.data, "base64"),
-    );
+    for(const id of ["overview","animation","appearance","audio","wifi","weather","time","advanced"]){
+      await evaluate("page("+JSON.stringify(id)+")");
+      if(id==="wifi" || id==="advanced") await until("$('legacy').contentDocument?.getElementById('ssid')!=null");
+      await pause(160);
+      assert.ok(await evaluate("document.documentElement.scrollWidth<=innerWidth"),name+" "+id);
+      const metrics=await call("Page.getLayoutMetrics");
+      const shot=await call("Page.captureScreenshot",{format:"png",captureBeyondViewport:true,
+        clip:{x:0,y:0,width,height:Math.max(height,metrics.cssContentSize.height),scale:1}});
+      const suffix=id==="overview"?"":("-"+id);
+      await writeFile(web+name+suffix+"-preview.png",Buffer.from(shot.data,"base64"));
+    }
   }
+  await evaluate("page('animation');$('breath_ds').value=24;$('breath_ds').oninput()");
+  await until("state.animation.breath_ds===24 && !state.animation_saved");
+  assert.equal(saves,0);
+  await evaluate("$('saveMotion').click()");
+  await until("state.animation_saved && !motionBusy");
+  assert.equal(saves,1);
+  await evaluate("page('appearance')");
   await evaluate("$('bgwhite').click();$('bodyMode').value='half';$('showSubs').click();$('applyControls').click()");
   await until("state.white && state.half && state.subtitles && state.volume===65");
-  await evaluate("$('mobileNav').value='audio';$('mobileNav').onchange();$('volume').value=25;$('applyVolume').click()");
+  await evaluate("$('mobileNav').click();document.querySelector('[data-page=audio]').click();$('volume').value=25;$('applyVolume').click()");
   await until("state.volume===25 && state.white && state.subtitles");
   await evaluate("page('weather');$('key').value='new';$('reveal').click();");
   assert.equal(await evaluate("$('key').type"), "text");
@@ -188,11 +208,18 @@ try {
   disconnected=false;
   await evaluate("refresh()");
   await until("$('connection').textContent==='Setup hotspot' && $('feedback').textContent===''");
+  // Discard unsaved RAM edits and recreate the simulated device from its saved record.
+  await evaluate("page('animation');$('hand_pct').value=17;$('hand_pct').oninput()");
+  await until("state.animation.hand_pct===17 && !state.animation_saved");
+  snapshot.animation={...persisted}; snapshot.animation_saved=true;
   home = true;
   await call("Page.navigate", { url });
   await until("document.getElementById('login')?.hidden===false");
   await evaluate("$('access').value='demo';$('unlock').click()");
   await until("state?.home===true");
+  await evaluate("page('animation')");
+  assert.equal(await evaluate("Number($('breath_ds').value)"),24);
+  assert.equal(await evaluate("Number($('hand_pct').value)"),100);
   await evaluate("page('advanced')");
   assert.equal(
     await evaluate("$('legacy').hidden && $('pairBox').hidden"),

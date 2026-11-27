@@ -65,3 +65,11 @@ Connect one normally open switch between each input and GND. Confirm these pins 
 | BOOT | 0 | Existing single-click and double-click controls |
 
 The settings screen displays the actual SSID and URL. Save a network before choosing **Save & Return to Aura**. If the connection times out, the device reopens the hotspot. The system-screen preview PNGs use example credentials and codes. Verify hotspot entry during speech, reconnection, retained mute, both backgrounds and animations on the panel.
+
+## Live motion controls
+
+Open **Animation** on the setup hotspot or sign in on the home network. Moving a slider previews the change on the device. **Save and Apply** stores the current settings in NVS. **Restore defaults** previews the factory settings and can be saved the same way. An unsaved preview lasts until reboot or another edit.
+
+Breathing supports 2.0–8.0 seconds per cycle and defaults to 3.6 seconds. The hand control covers 2.0–10.0 seconds and shows the effective periods of both arms (4.0 and 4.5 seconds by default). Strength scales the board's safe displacement from zero to 100 percent. The renderer preserves phase on speed changes and eases disabled motion back to neutral.
+
+The preview artifact includes desktop and mobile screenshots taken with a browser fixture. The full-body and half-body GIFs show the default settings. Additional GIFs show each motion disabled, the two breathing speed extremes, and a speed change four seconds into playback.

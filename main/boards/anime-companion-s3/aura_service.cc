@@ -196,6 +196,7 @@ cJSON* clock_locked() {
     if (!stamp)
         return j;
     time_t t = time(nullptr);
+    number(j, "epoch", t);
     tm local{};
     localtime_r(&t, &local);
     char value[64];

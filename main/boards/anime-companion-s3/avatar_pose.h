@@ -21,6 +21,58 @@ inline Pose MakePose(int64_t ms, MotionConfig c) {
     p.arm[1] = c.arm_px * std::sin(phase(c.right_ms) + .69f - .12f * breath);
     return p;
 }
+// One versioned word is both the atomic renderer snapshot and the NVS record.
+struct AnimationSettings {
+    bool breath_on = true, hand_on = true;
+    int breath_ds = 36, hand_ds = 40, breath_pct = 100, hand_pct = 100;
+    bool Valid() const {
+        return breath_ds >= 20 && breath_ds <= 80 && hand_ds >= 20 && hand_ds <= 100 &&
+               breath_pct >= 0 && breath_pct <= 100 && hand_pct >= 0 && hand_pct <= 100;
+    }
+    uint32_t Encode() const {
+        return 0x40000000u | uint32_t(breath_on) | (uint32_t(hand_on) << 1) |
+               (uint32_t(breath_ds) << 2) | (uint32_t(hand_ds) << 9) |
+               (uint32_t(breath_pct) << 16) | (uint32_t(hand_pct) << 23);
+    }
+    static AnimationSettings Decode(uint32_t word) {
+        AnimationSettings s{bool(word & 1),       bool(word & 2),        int(word >> 2 & 127),
+                            int(word >> 9 & 127), int(word >> 16 & 127), int(word >> 23 & 127)};
+        return (word >> 30) == 1 && s.Valid() ? s : AnimationSettings{};
+    }
+    int Left() const { return std::min(hand_ds, 99); }
+    int Right() const { return std::min(100, (hand_ds * 9 + 4) / 8); }
+};
+class LiveMotion {
+public:
+    Pose Step(int64_t now, AnimationSettings s, int breath_px, int arm_px) {
+        const auto dt = last_ < 0 ? 0 : std::max<int64_t>(0, now - last_);
+        last_ = now;
+        auto advance = [dt](float phase, int ds) {
+            return std::fmod(phase + float(dt % (ds * 100)) / (ds * 100), 1.f);
+        };
+        breath_phase_ = advance(breath_phase_, previous_.breath_ds);
+        left_phase_ = advance(left_phase_, previous_.Left());
+        right_phase_ = advance(right_phase_, previous_.Right());
+        previous_ = s;
+        auto ramp = [dt](float v, float goal) {
+            const float step = std::min(1.f, float(dt) / 650.f);
+            return v + std::clamp(goal - v, -step, step);
+        };
+        breath_gain_ = ramp(breath_gain_, s.breath_on ? s.breath_pct / 100.f : 0.f);
+        hand_gain_ = ramp(hand_gain_, s.hand_on ? s.hand_pct / 100.f : 0.f);
+        constexpr float tau = 6.283185307f;
+        const float t = breath_phase_;
+        const float b = .5f * (1 - std::cos(.5f * tau * (t < .42f ? t / .42f : (1 - t) / .58f)));
+        return {b * breath_gain_ * breath_px,
+                {hand_gain_ * arm_px * std::sin(tau * left_phase_),
+                 hand_gain_ * arm_px * std::sin(tau * right_phase_ + .69f)}};
+    }
+
+private:
+    AnimationSettings previous_{};
+    int64_t last_ = -1;
+    float breath_phase_ = 0, left_phase_ = 0, right_phase_ = 0, breath_gain_ = 0, hand_gain_ = 0;
+};
 struct Delta {
     int x, y;
 };

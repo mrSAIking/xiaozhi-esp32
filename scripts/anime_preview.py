@@ -8,7 +8,7 @@ import tempfile
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-def generate(exe, bank, target, mode):
+def generate(exe, bank, target, mode, scenario="default"):
     manifest = json.loads((bank / "manifest.json").read_text())
     coords = []
     for group, state in (("eyes", "open"), ("mouth", "closed")):
@@ -16,7 +16,7 @@ def generate(exe, bank, target, mode):
         coords.extend(str(patch[k]) for k in ("x", "y", "width", "height"))
     with tempfile.TemporaryDirectory() as tmp:
         raw = Path(tmp) / "poses.rgb565"
-        subprocess.run([exe, bank, str(mode), *coords, raw], check=True)
+        subprocess.run([exe, bank, str(mode), *coords, raw, scenario], check=True)
         frames = []
         with raw.open("rb") as stream:
             while data := stream.read(320 * 480 * 2):
@@ -73,6 +73,8 @@ if __name__ == "__main__":
         root = Path(__file__).resolve().parents[1] / "character"
         exe = args.executable.resolve()
         generate(exe, root/"aura"/name, args.output/(name+".gif"), mode)
+    for scenario in ("breathing-disabled", "hand-disabled", "fast-breathing", "slow-breathing", "runtime-speed-change"):
+        generate(exe, root/"aura"/"half_body", args.output/(scenario+".gif"), 1, scenario)
     subtitles(exe, args.output/"half_body.gif", args.output/"subtitles-black.gif")
     with tempfile.TemporaryDirectory() as tmp:
         white = Path(tmp)/"white.gif"

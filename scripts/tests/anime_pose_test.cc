@@ -2,6 +2,23 @@
 #include <vector>
 #include "avatar_pose.h"
 int main() {
+    avatar::AnimationSettings a;
+    assert(avatar::AnimationSettings::Decode(a.Encode()).Encode() == a.Encode());
+    avatar::LiveMotion live;
+    auto old = live.Step(0, a, 3, 2);
+    old = live.Step(400, a, 3, 2);
+    a.breath_ds = 20;
+    a.hand_ds = 100;
+    auto same = live.Step(400, a, 3, 2);
+    assert(old.breath == same.breath && old.arm[0] == same.arm[0]);
+    a.breath_on = false;
+    a.hand_on = false;
+    same = live.Step(400, a, 3, 2);
+    assert(same.breath == old.breath);
+    auto neutral = live.Step(1200, a, 3, 2);
+    assert(neutral.breath == 0 && neutral.arm[0] == 0 && neutral.arm[1] == 0);
+    assert(avatar::AnimationSettings::Decode(0).breath_ds == 36);
+    assert(avatar::AnimationSettings::Decode(a.Encode()).hand_ds == 100);
     using namespace avatar;
     std::vector<uint16_t> image(320 * 480);
     image[120 * 320 + 160] = 0xffff;

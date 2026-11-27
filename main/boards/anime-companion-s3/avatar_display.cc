@@ -283,7 +283,7 @@ void AvatarDisplay::LoadMode(int selected, int64_t ms) {
     current_mode_ = selected;
     eye_ = mouth_ = 0;
     blink_at_ = NextBlink(ms, mode);
-    mouth_at_ = due_ms_ = origin_ms_ = ms;
+    mouth_at_ = due_ms_ = ms;
     region_ = 0;
     pose_start_us_ = stats_start_us_ = 0;
     pose_ = {};
@@ -529,11 +529,9 @@ void AvatarDisplay::Tick() {
     if (ms < due_ms_ || pose_start_us_)
         return;
     if (!region_) {
-        const avatar::MotionConfig cfg{
-            CONFIG_ANIME_BREATH_PERIOD_MS, CONFIG_ANIME_BREATH_AMPLITUDE_PX,
-            CONFIG_ANIME_ARM_PERIOD_MS, CONFIG_ANIME_RIGHT_ARM_PERIOD_MS,
-            selected ? CONFIG_ANIME_ARM_HALF_PX : CONFIG_ANIME_ARM_FULL_PX};
-        pose_ = avatar::MakePose(ms - origin_ms_, cfg);
+        pose_ = motion_.Step(ms, avatar::AnimationSettings::Decode(motion_word_.load()),
+                             CONFIG_ANIME_BREATH_AMPLITUDE_PX,
+                             selected ? CONFIG_ANIME_ARM_HALF_PX : CONFIG_ANIME_ARM_FULL_PX);
         sweep_start_us_ = now_us;
     }
     aura::BodyBudget budget(CONFIG_ANIME_SPI_MHZ, speaking);

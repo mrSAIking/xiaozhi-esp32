@@ -93,6 +93,9 @@ esp_err_t Api(httpd_req_t* r) {
                 error = "Invalid speaker volume";
             else
                 aura::SetSpeakerVolume(volume->valueint);
+        } else if (cJSON_IsString(action) && (!strcmp(action->valuestring,"animation") ||
+                   !strcmp(action->valuestring,"preview_animation"))) {
+            error=aura::ApplyAnimation(j,!strcmp(action->valuestring,"animation"));
         } else if (cJSON_IsString(action) && !strcmp(action->valuestring, "appearance"))
             error = aura::ApplyAppearance(j);
         else
