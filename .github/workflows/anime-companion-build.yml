@@ -71,7 +71,7 @@ jobs:
           python scripts/test_aura_service_host.py
           python -m unittest discover -s scripts/tests -p test_assets.py -v
           grep -Fx '# CONFIG_ANIME_PANEL_SELF_TEST is not set' sdkconfig
-          grep -Fx CONFIG_ANIME_BREATH_PERIOD_MS=4800 sdkconfig
+          grep -Fx CONFIG_ANIME_BREATH_PERIOD_MS=3600 sdkconfig
           grep -Fx CONFIG_ANIME_SPI_MHZ=${{ matrix.spi_mhz }} sdkconfig
           grep -Fx CONFIG_ESP_BROWNOUT_DET=y sdkconfig
           grep -Fx CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y sdkconfig

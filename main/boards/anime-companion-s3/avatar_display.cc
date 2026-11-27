@@ -330,6 +330,10 @@ void AvatarDisplay::SetConversationText(const char* role, const char* content) {
     std::lock_guard lock(captions_mutex_);
     captions_.Submit(answer, content, esp_timer_get_time() / 1000);
 }
+void AvatarDisplay::FinishConversationText() {
+    std::lock_guard lock(captions_mutex_);
+    captions_.Finish();
+}
 void AvatarDisplay::CancelConversationText() {
     std::lock_guard lock(captions_mutex_);
     captions_.Clear();
@@ -348,10 +352,10 @@ void AvatarDisplay::CreateOverlays() {
     caption_bar_ = lv_obj_create(avatar_screen_);
     lv_obj_remove_style_all(caption_bar_);
     lv_obj_remove_flag(caption_bar_, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_size(caption_bar_, 320, 58);
+    lv_obj_set_size(caption_bar_, 320, 42);
     lv_obj_align(caption_bar_, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_set_style_bg_color(caption_bar_, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(caption_bar_, LV_OPA_80, 0);
+    lv_obj_set_style_bg_color(caption_bar_, lv_color_hex(0x101012), 0);
+    lv_obj_set_style_bg_opa(caption_bar_, 250, 0);
     lv_obj_add_flag(caption_bar_, LV_OBJ_FLAG_HIDDEN);
     caption_label_ = lv_label_create(caption_bar_);
     lv_label_set_text(caption_label_, "");
@@ -368,7 +372,7 @@ void AvatarDisplay::UpdateOverlays(int64_t ms, bool listening, bool active) {
             lv_obj_add_flag(dot_, LV_OBJ_FLAG_HIDDEN);
     }
     int alpha;
-    int64_t elapsed;
+    int x;
     bool visible, font_changed = false;
     auto font = GetTheme() ? GetTheme()->GetTextFont() : nullptr;
     if (font && font != caption_font_) {
@@ -378,7 +382,12 @@ void AvatarDisplay::UpdateOverlays(int64_t ms, bool listening, bool active) {
     }
     {
         std::lock_guard lock(captions_mutex_);
-        captions_.Tick(ms, active);
+        if (font_changed)
+            captions_.FontChanged();
+        captions_.Tick(ms, active, [&](const char* str, size_t bytes) {
+            return lv_text_get_width(str, bytes, lv_obj_get_style_text_font(caption_label_, 0),
+                                     lv_obj_get_style_text_letter_space(caption_label_, 0));
+        });
         visible = !captions_.text.empty();
         if (caption_revision_ != captions_.revision || font_changed) {
             caption_revision_ = captions_.revision;
@@ -390,19 +399,17 @@ void AvatarDisplay::UpdateOverlays(int64_t ms, bool listening, bool active) {
             lv_label_set_text(caption_label_, captions_.text.c_str());
             lv_obj_set_style_text_color(caption_label_,
                                         lv_color_hex(captions_.assistant ? 0xffffff : 0xa8c7fa), 0);
-            lv_obj_update_layout(caption_label_);
-            caption_width_ = lv_obj_get_width(caption_label_);
         }
         if (!visible)
             return;
         alpha = captions_.Opacity(ms);
-        elapsed = ms - captions_.shown;
+        x = captions_.X();
     }
     if (alpha != opacity_) {
         lv_obj_set_style_opa(caption_bar_, alpha, 0);
         opacity_ = alpha;
     }
-    const int x = 8 + aura::ScrollX(caption_width_, elapsed);
+
     if (x != caption_x_) {
         lv_obj_set_x(caption_label_, x);
         caption_x_ = x;
@@ -500,7 +507,7 @@ void AvatarDisplay::Tick() {
         state == kDeviceStateListening,
         state == kDeviceStateListening && app.GetAudioService().IsAudioProcessorRunning(),
         app.IsListeningStartPending());
-    UpdateOverlays(ms, listening, speaking || !app.GetAudioService().IsPlaybackIdle());
+    UpdateOverlays(ms, listening, !app.GetAudioService().IsPlaybackIdle());
     if (ms < due_ms_ || pose_start_us_)
         return;
     if (!region_) {

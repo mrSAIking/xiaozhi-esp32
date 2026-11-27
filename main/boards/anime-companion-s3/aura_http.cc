@@ -1,8 +1,8 @@
 #include <atomic>
 #include <cstring>
 #include <mutex>
-#include "aura_service.h"
 #include "appearance.h"
+#include "aura_service.h"
 #include "esp_http_server.h"
 #include "esp_netif.h"
 #include "esp_timer.h"
@@ -85,8 +85,18 @@ esp_err_t Api(httpd_req_t* r) {
         if (!j)
             return Deny(r, "400 Bad Request", "Invalid JSON");
         auto action = cJSON_GetObjectItemCaseSensitive(j, "action");
-        auto error = cJSON_IsString(action) && !strcmp(action->valuestring, "appearance")
-                         ? aura::ApplyAppearance(j) : aura::Command(j, home);
+        const char* error = nullptr;
+        if (cJSON_IsString(action) && !strcmp(action->valuestring, "volume")) {
+            auto volume = cJSON_GetObjectItemCaseSensitive(j, "volume");
+            if (!cJSON_IsNumber(volume) || volume->valuedouble != volume->valueint ||
+                volume->valueint < 0 || volume->valueint > 100)
+                error = "Invalid speaker volume";
+            else
+                aura::SetSpeakerVolume(volume->valueint);
+        } else if (cJSON_IsString(action) && !strcmp(action->valuestring, "appearance"))
+            error = aura::ApplyAppearance(j);
+        else
+            error = aura::Command(j, home);
         cJSON_Delete(j);
         if (error)
             return Deny(r, "400 Bad Request", error);

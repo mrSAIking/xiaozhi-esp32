@@ -18,7 +18,7 @@ const snapshot = {
   automatic: true,
   h24: false,
   zones: ["Asia/Kolkata", "Europe/London"],
-  firmware: "2.6.0",
+  firmware: "2.6.0", board:"anime-companion-s3",
   ip: "192.168.4.1",
   clock: { synchronized: false },
   cities: [],
@@ -38,7 +38,7 @@ const server = createServer(async (req, res) => {
       let raw = "";
       for await (const part of req) raw += part;
       const p = JSON.parse(raw);
-      if (p.action === "appearance") Object.assign(snapshot,p);
+      if (p.action === "appearance" || p.action==="volume") Object.assign(snapshot,p);
       if (p.action === "time") {
         snapshot.zone = p.zone;
         snapshot.h24 = p.h24;
@@ -152,6 +152,7 @@ try {
       await evaluate("document.documentElement.scrollWidth<=innerWidth"),
     );
     await evaluate("page('appearance')");
+    assert.ok(await evaluate("document.documentElement.scrollWidth<=innerWidth"));
     await pause(150);
     const shot = await call("Page.captureScreenshot", {
       format: "png",
@@ -162,8 +163,10 @@ try {
       Buffer.from(shot.data, "base64"),
     );
   }
-  await evaluate("$('bgwhite').click();$('bodyMode').value='half';$('showSubs').click();$('volume').value=25;$('applyControls').click()");
-  await until("state.white && state.half && state.subtitles && state.volume===25");
+  await evaluate("$('bgwhite').click();$('bodyMode').value='half';$('showSubs').click();$('applyControls').click()");
+  await until("state.white && state.half && state.subtitles && state.volume===65");
+  await evaluate("$('mobileNav').value='audio';$('mobileNav').onchange();$('volume').value=25;$('applyVolume').click()");
+  await until("state.volume===25 && state.white && state.subtitles");
   await evaluate("page('weather');$('key').value='new';$('reveal').click();");
   assert.equal(await evaluate("$('key').type"), "text");
   await evaluate("$('clear').click();$('test').click()");

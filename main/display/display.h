@@ -50,6 +50,7 @@ public:
     virtual bool SetEmotion(const char* emotion);
     virtual void SetChatMessage(const char* role, const char* content);
     virtual void SetConversationText(const char* role, const char* content) { SetChatMessage(role,content); }
+    virtual void FinishConversationText() {}
     virtual void CancelConversationText() {}
     // Remove a matching message without clearing newer content, when supported.
     virtual void RemoveChatMessage(const char* role, const char* content) {}

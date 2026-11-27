@@ -342,6 +342,7 @@ void Application::HandleNetworkConnectedEvent() {
 }
 
 void Application::HandleNetworkDisconnectedEvent() {
+    Board::GetInstance().GetDisplay()->CancelConversationText();
     // Close current conversation when network disconnected
     auto state = GetDeviceState();
     if (state == kDeviceStateNotifying) {
@@ -669,7 +670,8 @@ void Application::InitializeProtocol() {
                     SetDeviceState(kDeviceStateSpeaking);
                 });
             } else if (strcmp(state->valuestring, "stop") == 0) {
-                Schedule([this]() {
+                Schedule([this, display]() {
+                    display->FinishConversationText();
                     if (GetDeviceState() == kDeviceStateSpeaking) {
                         if (listening_mode_ == kListeningModeManualStop) {
                             SetDeviceState(kDeviceStateIdle);
@@ -1485,6 +1487,7 @@ bool Application::PrepareForWifiSettings() {
     if (state == kDeviceStateSpeaking) AbortSpeaking(kAbortReasonNone);
     if (state == kDeviceStateListening && protocol_) protocol_->SendStopListening();
     pending_listening_start_ = false;
+    Board::GetInstance().GetDisplay()->CancelConversationText();
     audio_service_.EnableVoiceProcessing(false);
     audio_service_.EnableWakeWordDetection(false);
     audio_service_.ResetDecoder();

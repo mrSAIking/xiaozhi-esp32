@@ -87,6 +87,7 @@ struct Protocol { bool IsAudioChannelOpened(){return true;} void CloseAudioChann
  void SendStopListening(){} };
 struct Audio { bool mic=true,wake=true,flushed=false; void EnableVoiceProcessing(bool x){mic=x;}
  void EnableWakeWordDetection(bool x){wake=x;} void ResetDecoder(){flushed=true;} };
+struct Board { static Board& GetInstance(){static Board b;return b;} Board* GetDisplay(){return this;} void CancelConversationText(){} };
 struct Application {
  State state=kDeviceStateSpeaking; bool aborted=false,pending_listening_start_=true;
  Audio audio_service_; std::unique_ptr<Protocol> protocol_=std::make_unique<Protocol>();

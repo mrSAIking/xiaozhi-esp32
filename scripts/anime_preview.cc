@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include "aura_ui.h"
 #include "avatar_pose.h"
 using namespace avatar;
 
@@ -15,6 +16,29 @@ std::vector<uint16_t> Read(const std::string& path, int pixels) {
     return data;
 }
 int main(int argc, char** argv) {
+    if (argc == 3 && std::string(argv[1]) == "--track") {
+        const double advance = std::stod(argv[2]);  // PIL preview font, monospaced Latin fixture
+        aura::Captions track;
+        track.Enable(true);
+        track.Submit(false, "Why is the sky blue?", 0);
+        for (int ms = 0; ms < 45000; ms += 80) {
+            if (ms == 1600)
+                track.Submit(true, "Sunlight scatters.", ms);
+            if (ms == 3600)
+                track.Submit(true, "Blue scatters more.", ms);
+            if (ms == 6000)
+                track.Submit(true, "That colors our sky.", ms);
+            if (ms == 8400)
+                track.Finish();
+            track.Tick(ms, ms >= 1600 && ms < 8800,
+                       [advance](const char*, size_t n) { return int(n * advance + 0.5); });
+            std::cout << ms << '\t' << track.X() << '\t' << track.Opacity(ms) << '\t'
+                      << track.assistant << '\t' << track.text << '\n';
+            if (ms > 9000 && track.text.empty())
+                return 0;
+        }
+        throw std::runtime_error("Subtitle track did not drain");
+    }
     if (argc != 12)
         return 2;
     const std::string dir = argv[1];
@@ -35,7 +59,7 @@ int main(int argc, char** argv) {
                   Read(dir + "/eyes/eyes_" + eye_name + ".rgb565", eyes.w * eyes.h).data());
         Composite(frame.data(), mouth,
                   Read(dir + "/mouth/mouth_" + mouth_name + ".rgb565", mouth.w * mouth.h).data());
-        auto pose = MakePose(t, {4800, 3, 5500, 6500, mode ? 3 : 2});
+        auto pose = MakePose(t, {3600, 3, 4000, 4500, mode ? 3 : 2});
         PoseRegions(mode, [&](Rect r) {
             auto dirty = RenderRegion(src.data(), frame.data(), mode, pose, r);
             if (dirty.w > 0)

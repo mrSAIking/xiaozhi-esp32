@@ -9,7 +9,7 @@ int main() {
     assert(SampleAt(image.data(), 160 * 256 + 128, 120 * 256) == 0x8410);
     assert(SampleAt(image.data(), -200, -20) == 0);
     for (int mode : {0, 1}) {
-        MotionConfig cfg{4800, 3, 5500, 6500, 3};
+        MotionConfig cfg{3600, 3, 4000, 4500, 3};
         for (int t = 0; t < 18000; t += 40) {
             auto a = MakePose(t, cfg), b = MakePose(t + 1, cfg);
             for (int y : {20, 45, 60, 123, 166, 238, 312, 479}) {

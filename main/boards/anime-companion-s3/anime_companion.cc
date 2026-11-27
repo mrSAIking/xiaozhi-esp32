@@ -166,6 +166,7 @@ public:
     }
     void SnapshotAppearance(cJSON* s) {
         std::lock_guard lock(controls_);
+        cJSON_AddStringToObject(s, "board", BOARD_NAME);
         cJSON_AddBoolToObject(s, "white", white_);
         cJSON_AddBoolToObject(s, "half", half_body_);
         cJSON_AddBoolToObject(s, "subtitles", subtitles_);
@@ -176,15 +177,16 @@ public:
         auto white = get("white"), half = get("half"), text = get("subtitles"),
              volume = get("volume");
         if (!cJSON_IsBool(white) || !cJSON_IsBool(half) || !cJSON_IsBool(text) ||
-            !cJSON_IsNumber(volume) || volume->valuedouble != volume->valueint ||
-            volume->valueint < 0 || volume->valueint > 100)
+            (volume && (!cJSON_IsNumber(volume) || volume->valuedouble != volume->valueint ||
+                        volume->valueint < 0 || volume->valueint > 100)))
             return "Invalid appearance settings";
         std::lock_guard lock(controls_);
         if (SetAvatarMode(cJSON_IsTrue(half)) != ESP_OK)
             return "Could not save display mode";
         SetBackground(cJSON_IsTrue(white));
         SetSubtitles(cJSON_IsTrue(text));
-        SetSpeakerVolume(volume->valueint);
+        if (volume)
+            SetSpeakerVolume(volume->valueint);
         return nullptr;
     }
     void ReturnToStation() {
