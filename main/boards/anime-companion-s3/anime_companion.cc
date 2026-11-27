@@ -1,5 +1,6 @@
 #include "application.h"
 #include "assets/lang_config.h"
+#include "aura_service.h"
 #include "avatar_display.h"
 #include "button.h"
 #include "codecs/no_audio_codec.h"
@@ -73,9 +74,20 @@ public:
                             ? ESP_OK
                             : ESP_ERR_NO_MEM);
 
+        aura::Init();
+        aura::StartControl();
+        McpServer::GetInstance().AddTool(
+            "self.time.get_current", "Read synchronized local date, weekday, time and zone.",
+            PropertyList(), [](const PropertyList&) -> ToolResult { return aura::Clock(); });
+        McpServer::GetInstance().AddTool(
+            "self.weather.get_current",
+            "Current weather observation for the configured home city. Report unavailable status "
+            "when there is no observation.",
+            PropertyList(), [](const PropertyList&) -> ToolResult { return aura::Weather(); });
         McpServer::GetInstance().AddTool(
             "self.avatar.set_text_mode",
-            "Enable for Show me text mode, Enable text mode or Show subtitles. Disable for Turn off text mode, Disable text mode or Hide subtitles.",
+            "Enable for Show me text mode, Enable text mode or Show subtitles. Disable for Turn "
+            "off text mode, Disable text mode or Hide subtitles.",
             PropertyList({Property("enabled", kPropertyTypeBoolean)}),
             [this](const PropertyList& props) -> ToolResult {
                 display_.SetTextMode(props["enabled"].value<bool>());
@@ -105,6 +117,7 @@ public:
         ESP_LOGI("AnimeBoard", "Starting Wi-Fi, internal free heap=%zu, PSRAM free heap=%zu",
                  heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                  heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+        display_.ConnectingWifi();
         WifiBoard::StartNetwork();
     }
     AudioCodec* GetAudioCodec() override {

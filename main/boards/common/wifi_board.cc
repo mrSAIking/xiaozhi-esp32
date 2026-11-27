@@ -1,5 +1,8 @@
 #include "wifi_board.h"
 #include "portal_settings.h"
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+#include "aura_service.h"
+#endif
 
 #include "display.h"
 #include "application.h"
@@ -124,6 +127,10 @@ void WifiBoard::TryWifiConnect() {
 }
 
 void WifiBoard::OnNetworkEvent(NetworkEvent event, const std::string& data) {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    if (event == NetworkEvent::Connected) aura::Network(true);
+    if (event == NetworkEvent::Disconnected) aura::Network(false);
+#endif
     switch (event) {
         case NetworkEvent::Connected:
             // Stop timeout timer
@@ -187,6 +194,10 @@ void WifiBoard::StartWifiConfigMode() {
 #ifdef CONFIG_USE_HOTSPOT_WIFI_PROVISIONING
     auto& wifi_manager = WifiManager::GetInstance();
 
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    aura::StopHome();
+    aura::Online(false);
+#endif
     wifi_manager.StartConfigAp();
 
     // Show config prompt after a short delay

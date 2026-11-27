@@ -1,0 +1,2096 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Network Configuration</title>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="referrer no-referrer">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <style type="text/css">
+        /* ========== Design Tokens ========== */
+        :root {
+            color-scheme: light dark;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --accent-soft: rgba(37, 99, 235, 0.10);
+            --bg-grad-1: #eef2ff;
+            --bg-grad-2: #e0f2fe;
+            --surface: #ffffff;
+            --surface-muted: #f5f7fb;
+            --border: #e2e8f0;
+            --border-strong: #cbd5e1;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --danger: #dc2626;
+            --success: #15803d;
+            --radius: 14px;
+            --radius-sm: 10px;
+            --shadow: 0 10px 30px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --accent: #60a5fa;
+                --accent-hover: #93c5fd;
+                --accent-soft: rgba(96, 165, 250, 0.16);
+                --bg-grad-1: #0b1220;
+                --bg-grad-2: #111827;
+                --surface: #1e293b;
+                --surface-muted: #18233a;
+                --border: #334155;
+                --border-strong: #475569;
+                --text: #e2e8f0;
+                --text-muted: #94a3b8;
+                --danger: #f87171;
+                --success: #4ade80;
+                --shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+            }
+        }
+
+        /* ========== Base Styles ========== */
+        * { box-sizing: border-box; }
+        html {
+            min-height: 100%;
+            background-color: var(--bg-grad-2);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 12px 16px 32px;
+            padding-top: max(12px, env(safe-area-inset-top));
+            padding-right: max(16px, env(safe-area-inset-right));
+            padding-bottom: max(32px, env(safe-area-inset-bottom));
+            padding-left: max(16px, env(safe-area-inset-left));
+            color: var(--text);
+            background: linear-gradient(160deg, var(--bg-grad-1), var(--bg-grad-2));
+            background-color: var(--bg-grad-2);
+            background-attachment: fixed;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        .page {
+            max-width: 460px;
+            margin: 0 auto;
+        }
+
+        /* ========== Header ========== */
+        .app-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 4px 10px;
+        }
+        .app-header .logo {
+            width: 32px;
+            height: 32px;
+            flex: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9px;
+            background: var(--accent);
+            color: #fff;
+            box-shadow: var(--shadow);
+        }
+        .app-header .logo svg { width: 19px; height: 19px; }
+
+        /* ========== Card ========== */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        h3 {
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin: 0 0 12px;
+        }
+
+        /* ========== Form Elements ========== */
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+        input[type="text"],
+        input[type="url"],
+        input[type="number"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 11px 12px;
+            font-size: 15px;
+            color: var(--text);
+            background: var(--surface-muted);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input[type="text"]:focus,
+        input[type="url"]:focus,
+        input[type="number"]:focus,
+        input[type="password"]:focus,
+        select:focus {
+            border-color: var(--accent);
+            background: var(--surface);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+            cursor: pointer;
+        }
+        form p { margin: 0 0 16px; }
+
+        input[type="submit"] {
+            width: 100%;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 13px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.05s;
+        }
+        input[type="submit"]:hover { background: var(--accent-hover); }
+        input[type="submit"]:active { transform: translateY(1px); }
+        input[type="submit"]:disabled {
+            background: var(--border-strong);
+            cursor: not-allowed;
+        }
+
+        .error {
+            color: var(--danger);
+            font-size: 13px;
+            text-align: center;
+            margin: 0 0 12px;
+        }
+        .error:empty {
+            display: none;
+        }
+
+        /* ========== Language Switcher ========== */
+        .language-switch {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-inline-start: auto;
+        }
+        .language-switch svg {
+            width: 18px;
+            height: 18px;
+            color: var(--text-muted);
+            flex: none;
+        }
+        .language-switch select {
+            width: auto;
+            padding: 7px 30px 7px 10px;
+            font-size: 13px;
+            background-position: right 8px center;
+        }
+        [dir="rtl"] select { background-position: left 12px center; padding-left: 36px; padding-right: 12px; }
+        [dir="rtl"] .language-switch select { background-position: left 8px center; padding: 7px 10px 7px 30px; }
+
+        /* ========== Tab Styles ========== */
+        .tabs {
+            display: flex;
+            gap: 6px;
+            padding: 6px;
+            margin: 0;
+            background: var(--surface-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        .tab {
+            flex: 1;
+            padding: 10px 14px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border: none;
+            border-radius: 9px;
+            background: transparent;
+            transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+        }
+        .tab:hover { color: var(--text); }
+        .tab.active {
+            background: var(--surface);
+            color: var(--accent);
+            box-shadow: var(--shadow);
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            background: var(--surface);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        #saved_list_container { margin-bottom: 24px; }
+
+        /* ========== Saved Wi-Fi List ========== */
+        #saved_list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        #saved_list li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 5px 12px;
+            background: var(--surface-muted);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+        }
+        #saved_list li > span:first-child {
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #saved_list li button {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            padding: 5px;
+            border-radius: 8px;
+            transition: background 0.15s;
+        }
+        #saved_list li button:hover { background: var(--accent-soft); }
+        #saved_list li button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ========== AP List Styles ========== */
+        #ap_list {
+            margin: 16px 0 0;
+            padding: 16px 0 0;
+            border-top: 1px solid var(--border);
+        }
+        #ap_list > p:first-child {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin: 0 0 4px;
+        }
+        #ap_list .scanning {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-style: normal;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        #ap_list .scanning::before {
+            content: "";
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border-strong);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        #ap_list a {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 6px;
+            padding: 7px 12px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 13px;
+            background: var(--surface-muted);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            transition: border-color 0.15s, background 0.15s;
+        }
+        #ap_list a:hover {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+            text-decoration: none;
+        }
+        .ap-name {
+            min-width: 0;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .ap-details { display: flex; align-items: center; gap: 10px; flex: none; }
+        .signal-bars {
+            direction: ltr;
+            display: inline-flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 14px;
+            color: var(--text-muted);
+        }
+        .signal-bars span { width: 4px; background: currentColor; opacity: 0.25; border-radius: 1px; }
+        .signal-bars span:nth-child(1) { height: 5px; }
+        .signal-bars span:nth-child(2) { height: 9px; }
+        .signal-bars span:nth-child(3) { height: 14px; }
+        .signal-bars span.active { opacity: 1; }
+
+        #advanced-tab { padding-block: 0; }
+        .advanced-group + .advanced-group { border-block-start: 1px solid var(--border); }
+        .advanced-summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            min-height: 64px;
+            padding: 14px 2px;
+            color: var(--text);
+            font-size: 18px;
+            font-weight: 650;
+            line-height: 1.3;
+            list-style: none;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .advanced-summary::-webkit-details-marker { display: none; }
+        .advanced-summary::after {
+            content: "";
+            flex: none;
+            width: 9px;
+            height: 9px;
+            margin-inline-end: 5px;
+            border: solid var(--text-muted);
+            border-width: 0 2px 2px 0;
+            transform: rotate(-45deg);
+        }
+        [dir="rtl"] .advanced-summary::after { transform: rotate(135deg); }
+        .advanced-group[open] > .advanced-summary::after {
+            border-color: var(--accent);
+            transform: rotate(45deg);
+        }
+        .advanced-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+        .advanced-group-body { padding: 0 2px 20px; }
+        .advanced-group-body > .advanced-help { margin: 0 0 18px; }
+        .advanced-field {
+            min-width: 0;
+            margin: 0;
+            padding: 0;
+            border: 0;
+        }
+        .advanced-field + .advanced-field { margin-block-start: 16px; }
+        .advanced-field > label, .advanced-field > legend {
+            margin: 0 0 7px;
+            padding: 0;
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 550;
+        }
+        .advanced-field .advanced-control {
+            display: block;
+            width: 100%;
+            min-height: 44px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background-color: var(--surface-muted);
+            color: var(--text);
+            font: inherit;
+            font-size: 16px;
+            line-height: 22px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .advanced-field select.advanced-control { padding-inline-end: 36px; }
+        .advanced-field .advanced-control:focus {
+            border-color: var(--accent);
+            background-color: var(--surface);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+        .advanced-control[type="number"] { -moz-appearance: textfield; }
+        .advanced-control[type="number"]::-webkit-inner-spin-button,
+        .advanced-control[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        textarea.advanced-control { resize: vertical; }
+        textarea.advanced-control[readonly] {
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 16px;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+        .advanced-switch-row:not([hidden]) {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            min-height: 44px;
+            gap: 0 14px;
+        }
+        .advanced-switch-row > label { margin: 0; padding-block: 10px; cursor: pointer; }
+        .advanced-switch-row > small { grid-column: 1 / -1; }
+        .advanced-field input.advanced-switch {
+            position: relative;
+            width: 44px;
+            height: 26px;
+            padding: 0;
+            margin: 0;
+            border: 1px solid var(--border-strong);
+            border-radius: 999px;
+            background: var(--border-strong);
+            -webkit-appearance: none;
+            appearance: none;
+            cursor: pointer;
+        }
+        .advanced-switch::before {
+            content: "";
+            position: absolute;
+            top: 3px;
+            inset-inline-start: 3px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #fff;
+        }
+        .advanced-field input.advanced-switch:checked { border-color: var(--accent); background: var(--accent); }
+        .advanced-switch:checked::before { inset-inline-start: 21px; }
+        .advanced-switch:focus-visible, .advanced-copy:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 3px;
+        }
+        .advanced-choice { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+        .advanced-help {
+            display: block;
+            margin: 6px 0 0;
+            color: var(--text-muted);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+        .advanced-field-error, .advanced-feedback {
+            margin-block-start: 6px;
+            color: var(--danger);
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .advanced-field-error { display: block; }
+        .advanced-feedback[data-saved] { color: var(--success); }
+        .advanced-feedback:empty, .advanced-field-error:empty { display: none; }
+        .advanced-field [aria-invalid="true"] { border-color: var(--danger); }
+        .advanced-copy {
+            min-height: 36px;
+            margin-block-start: 8px;
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--text);
+            font: inherit;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .advanced-copy:disabled { color: var(--text-muted); cursor: default; }
+        .advanced-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 8px 12px;
+            padding: 14px 2px;
+            border-block-start: 1px solid var(--border);
+        }
+        .advanced-footer .advanced-feedback { margin: 0; margin-inline-end: auto; }
+        .advanced-footer input[type="submit"] {
+            width: auto;
+            min-width: 96px;
+            min-height: 42px;
+            padding: 8px 18px;
+        }
+        .advanced-footer input[type="submit"]:disabled {
+            border: 1px solid var(--border);
+            background: var(--surface-muted);
+            color: var(--text-muted);
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--accent);
+            cursor: pointer;
+            flex: none;
+        }
+
+        /* ========== Loading Spinner Styles ========== */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(2px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-overlay.show { display: flex; }
+        .loading-spinner {
+            width: 56px;
+            height: 56px;
+            border: 5px solid rgba(255, 255, 255, 0.25);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .loading-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+        }
+        .loading-text {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+<style>
+html.aura,html.aura body{background:#15151c;color-scheme:dark}
+html.aura{--accent:#9333ea;--accent-hover:#7c3aed;--accent-soft:#2a1d3e;--surface:#15151c;--surface-muted:#1b1922;--border:#292933;--border-strong:#39353f;--text:#fff;--text-muted:#a1a1aa;--danger:#ef4444;--success:#22ff66}
+.aura .page{max-width:none;padding:0}.aura .card{box-shadow:none;border:0;padding:12px}.aura .logo,.aura .tabs{display:none}.aura .app-header{justify-content:flex-end;margin:0}.aura body{padding:12px}
+</style><script>if(new URLSearchParams(location.search).has('panel'))document.documentElement.classList.add('aura')</script></head>
+<body>
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" data-lang="connecting">Connecting...</div>
+        </div>
+    </div>
+
+    <div class="page">
+    <!-- Header -->
+    <header class="app-header">
+        <span class="logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                <line x1="12" y1="20" x2="12.01" y2="20"/>
+            </svg>
+        </span>
+        <!-- Language switcher -->
+        <div class="language-switch">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            <select id="language" onchange="changeLanguage()">
+            <option value="ar-SA">العربية</option>
+            <option value="bg-BG">Български</option>
+            <option value="ca-ES">Català</option>
+            <option value="cs-CZ">Čeština</option>
+            <option value="da-DK">Dansk</option>
+            <option value="de-DE">Deutsch</option>
+            <option value="el-GR">Ελληνικά</option>
+            <option value="en-US">English</option>
+            <option value="es-ES">Español</option>
+            <option value="fa-IR">فارسی</option>
+            <option value="fi-FI">Suomi</option>
+            <option value="fil-PH">Filipino</option>
+            <option value="fr-FR">Français</option>
+            <option value="he-IL">עברית</option>
+            <option value="hi-IN">हिन्दी</option>
+            <option value="hr-HR">Hrvatski</option>
+            <option value="hu-HU">Magyar</option>
+            <option value="id-ID">Bahasa Indonesia</option>
+            <option value="it-IT">Italiano</option>
+            <option value="ja-JP">日本語</option>
+            <option value="ko-KR">한국어</option>
+            <option value="ms-MY">Bahasa Melayu</option>
+            <option value="nb-NO">Norsk</option>
+            <option value="nl-NL">Nederlands</option>
+            <option value="pl-PL">Polski</option>
+            <option value="pt-PT">Português</option>
+            <option value="ro-RO">Română</option>
+            <option value="ru-RU">Русский</option>
+            <option value="sk-SK">Slovenčina</option>
+            <option value="sl-SI">Slovenščina</option>
+            <option value="sr-RS">Српски</option>
+            <option value="sv-SE">Svenska</option>
+            <option value="th-TH">ไทย</option>
+            <option value="tr-TR">Türkçe</option>
+            <option value="uk-UA">Українська</option>
+            <option value="vi-VN">Tiếng Việt</option>
+            <option value="zh-CN">简体中文</option>
+            <option value="zh-TW">繁體中文</option>
+            </select>
+        </div>
+    </header>
+
+    <div class="card">
+    <!-- Tabs -->
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('wifi')" data-lang="wifi_tab">Wi-Fi Config</div>
+        <div class="tab" onclick="switchTab('advanced')" data-lang="advanced_tab">Advanced</div>
+    </div>
+
+    <!-- Wi-Fi Configuration Tab -->
+    <div id="wifi-tab" class="tab-content active">
+        <!-- Saved Wi-Fi List -->
+        <div class="section" id="saved_list_container" style="display: none;">
+            <h3 data-lang="saved_wifi">Saved Wi-Fi</h3>
+            <ul id="saved_list">
+                <li><span>SSID</span></li>
+            </ul>
+        </div>
+        
+        <!-- New Wi-Fi Connection -->
+        <div class="section">
+            <h3 data-lang="new_wifi">New Wi-Fi</h3>
+            <p class="error" id="error"></p>
+            <form action="/submit" method="post" autocomplete="off" onsubmit="submitForm(event)">
+                <p>
+                    <label for="ssid" data-lang="ssid">Wi-Fi name:</label>
+                    <input type="text" id="ssid" name="ssid" autocomplete="off" autocapitalize="none" spellcheck="false" dir="auto" required readonly>
+                </p>
+                <p>
+                    <label for="password" data-lang="password">Password:</label>
+                    <input type="password" id="password" name="password" autocomplete="off" dir="auto">
+                </p>
+                <p>
+                    <input type="submit" value="Connect" id="button" data-lang-value="connect">
+                </p>
+            </form>
+            <div id="ap_list"></div>
+        </div>
+    </div>
+
+    <div id="advanced-tab" class="tab-content">
+        <div id="advanced-load-error" class="advanced-feedback" role="status"></div>
+        <form id="advanced-form" autocomplete="off" novalidate hidden>
+            <div id="advanced-groups"></div>
+            <div class="advanced-footer">
+                <div id="advanced-feedback" class="advanced-feedback" role="status"></div>
+                <input id="advanced-save" type="submit" value="Save" data-lang-value="save" disabled>
+            </div>
+        </form>
+    </div>
+    </div>
+    </div>
+
+    <script src="/advanced.js"></script>
+    <script type="text/javascript">
+        // ========== Global Variables ==========
+        const button = document.getElementById('button');
+        const ssid = document.getElementById('ssid');
+        let support5G = false; // Store 5G support status
+
+        // ========== Translation Data ==========
+        const translations = {
+            'ar-SA': {
+                title: 'تكوين الشبكة',
+                saved_wifi: 'Wi-Fi المحفوظة',
+                new_wifi: 'Wi-Fi جديد',
+                ssid: 'اسم Wi-Fi:',
+                password: 'كلمة المرور:',
+                connect: 'اتصال',
+                connecting: 'جارٍ الاتصال...',
+                select_wifi: 'اختر شبكة Wi-Fi بتردد 2.4 غيغاهرتز:',
+                select_wifi_5g: 'اختر شبكة Wi-Fi:',
+                signal_strong: 'إشارة قوية',
+                signal_fair: 'إشارة متوسطة',
+                signal_weak: 'إشارة ضعيفة',
+                signal_unknown: 'قوة الإشارة غير معروفة',
+                scanning: 'جارٍ المسح...',
+                wifi_tab: 'تكوين Wi-Fi',
+                advanced_tab: 'خيارات متقدمة',
+                save: 'حفظ',
+                settings_saved: 'تم الحفظ',
+                config_success: 'تم التكوين بنجاح!',
+                save_failed: 'تعذّر الحفظ. حاول مجددًا.',
+                connection_failed: 'تعذّر الاتصال بشبكة Wi-Fi. تحقّق من الاسم وكلمة المرور.',
+                invalid_ssid: 'يجب ألا يتجاوز اسم Wi-Fi ‏32 بايت.'
+            },
+            'bg-BG': {
+                title: 'Конфигурация на мрежата',
+                saved_wifi: 'Запазени Wi-Fi',
+                new_wifi: 'Нов Wi-Fi',
+                ssid: 'Име на Wi-Fi:',
+                password: 'Парола:',
+                connect: 'Свързване',
+                connecting: 'Свързване...',
+                select_wifi: 'Изберете Wi-Fi на 2,4 GHz:',
+                select_wifi_5g: 'Изберете Wi-Fi:',
+                signal_strong: 'Силен сигнал',
+                signal_fair: 'Среден сигнал',
+                signal_weak: 'Слаб сигнал',
+                signal_unknown: 'Неизвестна сила на сигнала',
+                scanning: 'Сканиране...',
+                wifi_tab: 'Конфигурация на Wi-Fi',
+                advanced_tab: 'Разширени',
+                save: 'Запазване',
+                settings_saved: 'Запазено',
+                config_success: 'Конфигурацията е успешна!',
+                save_failed: 'Запазването е неуспешно. Опитайте отново.',
+                connection_failed: 'Няма връзка с Wi-Fi. Проверете името и паролата.',
+                invalid_ssid: 'Името на Wi-Fi може да е до 32 байта.'
+            },
+            'ca-ES': {
+                title: 'Configuració de xarxa',
+                saved_wifi: 'Wi-Fi desats',
+                new_wifi: 'Nou Wi-Fi',
+                ssid: 'Nom del Wi-Fi:',
+                password: 'Contrasenya:',
+                connect: 'Connectar',
+                connecting: 'Connectant...',
+                select_wifi: 'Tria una xarxa Wi-Fi de 2,4 GHz:',
+                select_wifi_5g: 'Tria una xarxa Wi-Fi:',
+                signal_strong: 'Senyal fort',
+                signal_fair: 'Senyal mitjà',
+                signal_weak: 'Senyal feble',
+                signal_unknown: 'Intensitat desconeguda',
+                scanning: 'Escanejant...',
+                wifi_tab: 'Configuració Wi-Fi',
+                advanced_tab: 'Avançat',
+                save: 'Desar',
+                settings_saved: 'Desat',
+                config_success: 'Configuració completada correctament!',
+                save_failed: 'No s\'ha pogut desar. Torna-ho a provar.',
+                connection_failed: 'No s\'ha pogut connectar al Wi-Fi. Comprova el nom i la contrasenya.',
+                invalid_ssid: 'El nom del Wi-Fi pot tenir com a màxim 32 bytes.'
+            },
+            'cs-CZ': {
+                title: 'Konfigurace sítě',
+                saved_wifi: 'Uložené Wi-Fi',
+                new_wifi: 'Nové Wi-Fi',
+                ssid: 'Název Wi-Fi:',
+                password: 'Heslo:',
+                connect: 'Připojit',
+                connecting: 'Připojování...',
+                select_wifi: 'Vyberte Wi-Fi v pásmu 2,4 GHz:',
+                select_wifi_5g: 'Vyberte Wi-Fi:',
+                signal_strong: 'Silný signál',
+                signal_fair: 'Střední signál',
+                signal_weak: 'Slabý signál',
+                signal_unknown: 'Síla signálu není známa',
+                scanning: 'Skenování...',
+                wifi_tab: 'Konfigurace Wi-Fi',
+                advanced_tab: 'Pokročilé',
+                save: 'Uložit',
+                settings_saved: 'Uloženo',
+                config_success: 'Konfigurace byla úspěšná!',
+                save_failed: 'Uložení se nezdařilo. Zkuste to znovu.',
+                connection_failed: 'Připojení k Wi-Fi se nezdařilo. Zkontrolujte název a heslo.',
+                invalid_ssid: 'Název Wi-Fi může mít nejvýše 32 bajtů.'
+            },
+            'da-DK': {
+                title: 'Netværkskonfiguration',
+                saved_wifi: 'Gemte Wi-Fi',
+                new_wifi: 'Ny Wi-Fi',
+                ssid: 'Wi-Fi-navn:',
+                password: 'Adgangskode:',
+                connect: 'Forbind',
+                connecting: 'Forbinder...',
+                select_wifi: 'Vælg et 2,4 GHz Wi-Fi:',
+                select_wifi_5g: 'Vælg et Wi-Fi:',
+                signal_strong: 'Stærkt signal',
+                signal_fair: 'Middel signal',
+                signal_weak: 'Svagt signal',
+                signal_unknown: 'Ukendt signalstyrke',
+                scanning: 'Scanner...',
+                wifi_tab: 'Wi-Fi-konfiguration',
+                advanced_tab: 'Avanceret',
+                save: 'Gem',
+                settings_saved: 'Gemt',
+                config_success: 'Konfigurationen lykkedes!',
+                save_failed: 'Kunne ikke gemme. Prøv igen.',
+                connection_failed: 'Kunne ikke oprette Wi-Fi-forbindelse. Kontrollér navn og adgangskode.',
+                invalid_ssid: 'Wi-Fi-navnet må højst fylde 32 byte.'
+            },
+            'de-DE': {
+                title: 'Netzwerk-Konfiguration',
+                saved_wifi: 'Gespeicherte Wi-Fi-Verbindungen',
+                new_wifi: 'Neue Wi-Fi-Verbindung',
+                ssid: 'WLAN-Name:',
+                password: 'Passwort:',
+                connect: 'Verbinden',
+                connecting: 'Verbindung wird hergestellt...',
+                select_wifi: '2,4-GHz-WLAN auswählen:',
+                select_wifi_5g: 'WLAN auswählen:',
+                signal_strong: 'Starkes Signal',
+                signal_fair: 'Mittleres Signal',
+                signal_weak: 'Schwaches Signal',
+                signal_unknown: 'Signalstärke unbekannt',
+                scanning: 'Scanne...',
+                wifi_tab: 'Wi-Fi-Konfiguration',
+                advanced_tab: 'Erweitert',
+                save: 'Speichern',
+                settings_saved: 'Gespeichert',
+                config_success: 'Konfiguration erfolgreich!',
+                save_failed: 'Speichern fehlgeschlagen. Erneut versuchen.',
+                connection_failed: 'WLAN-Verbindung fehlgeschlagen. Name und Passwort prüfen.',
+                invalid_ssid: 'Der WLAN-Name darf maximal 32 Byte lang sein.'
+            },
+            'el-GR': {
+                title: 'Διαμόρφωση δικτύου',
+                saved_wifi: 'Αποθηκευμένα Wi-Fi',
+                new_wifi: 'Νέο Wi-Fi',
+                ssid: 'Όνομα Wi-Fi:',
+                password: 'Κωδικός πρόσβασης:',
+                connect: 'Σύνδεση',
+                connecting: 'Σύνδεση...',
+                select_wifi: 'Επιλέξτε Wi-Fi 2,4 GHz:',
+                select_wifi_5g: 'Επιλέξτε Wi-Fi:',
+                signal_strong: 'Ισχυρό σήμα',
+                signal_fair: 'Μέτριο σήμα',
+                signal_weak: 'Ασθενές σήμα',
+                signal_unknown: 'Άγνωστη ισχύς σήματος',
+                scanning: 'Σάρωση...',
+                wifi_tab: 'Διαμόρφωση Wi-Fi',
+                advanced_tab: 'Για προχωρημένους',
+                save: 'Αποθήκευση',
+                settings_saved: 'Αποθηκεύτηκε',
+                config_success: 'Η διαμόρφωση ολοκληρώθηκε με επιτυχία!',
+                save_failed: 'Η αποθήκευση απέτυχε. Δοκιμάστε ξανά.',
+                connection_failed: 'Η σύνδεση Wi-Fi απέτυχε. Ελέγξτε το όνομα και τον κωδικό.',
+                invalid_ssid: 'Το όνομα Wi-Fi μπορεί να έχει έως 32 byte.'
+            },
+            'en-US': {
+                title: 'Network Configuration',
+                saved_wifi: 'Saved Wi-Fi',
+                new_wifi: 'New Wi-Fi',
+                ssid: 'Wi-Fi name:',
+                password: 'Password:',
+                connect: 'Connect',
+                connecting: 'Connecting...',
+                select_wifi: 'Choose a 2.4 GHz Wi-Fi:',
+                select_wifi_5g: 'Choose a Wi-Fi:',
+                signal_strong: 'Strong signal',
+                signal_fair: 'Fair signal',
+                signal_weak: 'Weak signal',
+                signal_unknown: 'Signal unavailable',
+                scanning: 'Scanning...',
+                wifi_tab: 'Wi-Fi Config',
+                advanced_tab: 'Advanced',
+                save: 'Save',
+                settings_saved: 'Saved',
+                config_success: 'Configuration successful!',
+                save_failed: 'Could not save. Try again.',
+                connection_failed: 'Could not connect to Wi-Fi. Check the name and password.',
+                invalid_ssid: 'The Wi-Fi name must be at most 32 bytes.'
+            },
+            'es-ES': {
+                title: 'Configuración de red',
+                saved_wifi: 'Wi-Fi guardados',
+                new_wifi: 'Nuevo Wi-Fi',
+                ssid: 'Nombre de Wi-Fi:',
+                password: 'Contraseña:',
+                connect: 'Conectar',
+                connecting: 'Conectando...',
+                select_wifi: 'Elige una red Wi-Fi de 2,4 GHz:',
+                select_wifi_5g: 'Elige una red Wi-Fi:',
+                signal_strong: 'Señal fuerte',
+                signal_fair: 'Señal media',
+                signal_weak: 'Señal débil',
+                signal_unknown: 'Intensidad desconocida',
+                scanning: 'Escaneando...',
+                wifi_tab: 'Configuración Wi-Fi',
+                advanced_tab: 'Avanzado',
+                save: 'Guardar',
+                settings_saved: 'Guardado',
+                config_success: '¡Configuración exitosa!',
+                save_failed: 'No se ha podido guardar. Inténtalo de nuevo.',
+                connection_failed: 'No se ha podido conectar al Wi-Fi. Comprueba el nombre y la contraseña.',
+                invalid_ssid: 'El nombre de Wi-Fi puede tener como máximo 32 bytes.'
+            },
+            'fa-IR': {
+                title: 'پیکربندی شبکه',
+                saved_wifi: 'Wi-Fi ذخیره شده',
+                new_wifi: 'Wi-Fi جدید',
+                ssid: 'نام Wi-Fi:',
+                password: 'رمز عبور:',
+                connect: 'اتصال',
+                connecting: 'در حال اتصال...',
+                select_wifi: 'یک شبکهٔ Wi-Fi با فرکانس 2.4 گیگاهرتز انتخاب کنید:',
+                select_wifi_5g: 'یک شبکهٔ Wi-Fi انتخاب کنید:',
+                signal_strong: 'سیگنال قوی',
+                signal_fair: 'سیگنال متوسط',
+                signal_weak: 'سیگنال ضعیف',
+                signal_unknown: 'قدرت سیگنال نامشخص',
+                scanning: 'در حال اسکن...',
+                wifi_tab: 'پیکربندی Wi-Fi',
+                advanced_tab: 'پیشرفته',
+                save: 'ذخیره',
+                settings_saved: 'ذخیره شد',
+                config_success: 'پیکربندی با موفقیت انجام شد!',
+                save_failed: 'ذخیره نشد. دوباره تلاش کنید.',
+                connection_failed: 'اتصال به Wi-Fi برقرار نشد. نام و گذرواژه را بررسی کنید.',
+                invalid_ssid: 'نام Wi-Fi باید حداکثر 32 بایت باشد.'
+            },
+            'fi-FI': {
+                title: 'Verkon määritys',
+                saved_wifi: 'Tallennetut Wi-Fi',
+                new_wifi: 'Uusi Wi-Fi',
+                ssid: 'Wi-Fi-verkon nimi:',
+                password: 'Salasana:',
+                connect: 'Yhdistä',
+                connecting: 'Yhdistetään...',
+                select_wifi: 'Valitse 2,4 GHz:n Wi-Fi-verkko:',
+                select_wifi_5g: 'Valitse Wi-Fi-verkko:',
+                signal_strong: 'Vahva signaali',
+                signal_fair: 'Kohtalainen signaali',
+                signal_weak: 'Heikko signaali',
+                signal_unknown: 'Signaalin voimakkuus ei tiedossa',
+                scanning: 'Etsitään...',
+                wifi_tab: 'Wi-Fi-määritys',
+                advanced_tab: 'Lisäasetukset',
+                save: 'Tallenna',
+                settings_saved: 'Tallennettu',
+                config_success: 'Määritys onnistui!',
+                save_failed: 'Tallennus epäonnistui. Yritä uudelleen.',
+                connection_failed: 'Wi-Fi-yhteys epäonnistui. Tarkista nimi ja salasana.',
+                invalid_ssid: 'Wi-Fi-verkon nimi saa olla enintään 32 tavua.'
+            },
+            'fil-PH': {
+                title: 'Pagsasaayos ng Network',
+                saved_wifi: 'Naka-save na Wi-Fi',
+                new_wifi: 'Bagong Wi-Fi',
+                ssid: 'Pangalan ng Wi-Fi:',
+                password: 'Password:',
+                connect: 'Kumonekta',
+                connecting: 'Kumukonekta...',
+                select_wifi: 'Pumili ng 2.4 GHz Wi-Fi:',
+                select_wifi_5g: 'Pumili ng Wi-Fi:',
+                signal_strong: 'Malakas na signal',
+                signal_fair: 'Katamtamang signal',
+                signal_weak: 'Mahinang signal',
+                signal_unknown: 'Hindi alam ang lakas ng signal',
+                scanning: 'Nag-scan...',
+                wifi_tab: 'Pagsasaayos ng Wi-Fi',
+                advanced_tab: 'Advanced',
+                save: 'I-save',
+                settings_saved: 'Na-save',
+                config_success: 'Matagumpay ang configuration!',
+                save_failed: 'Hindi na-save. Subukang muli.',
+                connection_failed: 'Hindi makakonekta sa Wi-Fi. Suriin ang pangalan at password.',
+                invalid_ssid: 'Hindi dapat lumampas sa 32 byte ang pangalan ng Wi-Fi.'
+            },
+            'fr-FR': {
+                title: 'Configuration réseau',
+                saved_wifi: 'Wi-Fi enregistrés',
+                new_wifi: 'Nouveau Wi-Fi',
+                ssid: 'Nom du Wi-Fi :',
+                password: 'Mot de passe:',
+                connect: 'Connecter',
+                connecting: 'Connexion en cours...',
+                select_wifi: 'Choisissez un Wi-Fi 2,4 GHz :',
+                select_wifi_5g: 'Choisissez un Wi-Fi :',
+                signal_strong: 'Signal fort',
+                signal_fair: 'Signal moyen',
+                signal_weak: 'Signal faible',
+                signal_unknown: 'Puissance du signal inconnue',
+                scanning: 'Analyse en cours...',
+                wifi_tab: 'Configuration Wi-Fi',
+                advanced_tab: 'Avancé',
+                save: 'Enregistrer',
+                settings_saved: 'Enregistré',
+                config_success: 'Configuration réussie !',
+                save_failed: 'Échec de l\'enregistrement. Réessayez.',
+                connection_failed: 'Connexion Wi-Fi impossible. Vérifiez le nom et le mot de passe.',
+                invalid_ssid: 'Le nom du Wi-Fi ne doit pas dépasser 32 octets.'
+            },
+            'he-IL': {
+                title: 'הגדרות רשת',
+                saved_wifi: 'Wi-Fi שמורים',
+                new_wifi: 'Wi-Fi חדש',
+                ssid: 'שם רשת Wi-Fi:',
+                password: 'סיסמה:',
+                connect: 'התחבר',
+                connecting: 'מתחבר...',
+                select_wifi: 'בחרו רשת Wi-Fi בתדר 2.4 GHz:',
+                select_wifi_5g: 'בחרו רשת Wi-Fi:',
+                signal_strong: 'אות חזק',
+                signal_fair: 'אות בינוני',
+                signal_weak: 'אות חלש',
+                signal_unknown: 'עוצמת האות לא ידועה',
+                scanning: 'סורק...',
+                wifi_tab: 'הגדרות Wi-Fi',
+                advanced_tab: 'מתקדם',
+                save: 'שמור',
+                settings_saved: 'נשמר',
+                config_success: 'ההגדרה הושלמה בהצלחה!',
+                save_failed: 'השמירה נכשלה. נסו שוב.',
+                connection_failed: 'החיבור ל־Wi-Fi נכשל. בדקו את שם הרשת והסיסמה.',
+                invalid_ssid: 'שם רשת ה־Wi-Fi מוגבל ל־32 בתים.'
+            },
+            'hi-IN': {
+                title: 'नेटवर्क कॉन्फ़िगरेशन',
+                saved_wifi: 'सहेजे गए Wi-Fi',
+                new_wifi: 'नया Wi-Fi',
+                ssid: 'Wi-Fi का नाम:',
+                password: 'पासवर्ड:',
+                connect: 'कनेक्ट करें',
+                connecting: 'कनेक्ट हो रहा है...',
+                select_wifi: '2.4 GHz Wi-Fi चुनें:',
+                select_wifi_5g: 'Wi-Fi चुनें:',
+                signal_strong: 'मज़बूत सिग्नल',
+                signal_fair: 'मध्यम सिग्नल',
+                signal_weak: 'कमज़ोर सिग्नल',
+                signal_unknown: 'सिग्नल की शक्ति अज्ञात है',
+                scanning: 'स्कैन कर रहा है...',
+                wifi_tab: 'Wi-Fi कॉन्फ़िगरेशन',
+                advanced_tab: 'उन्नत',
+                save: 'सहेजें',
+                settings_saved: 'सहेजा गया',
+                config_success: 'कॉन्फ़िगरेशन सफल!',
+                save_failed: 'सहेजा नहीं जा सका। फिर कोशिश करें।',
+                connection_failed: 'Wi-Fi से कनेक्ट नहीं हो सका। नाम और पासवर्ड जाँचें।',
+                invalid_ssid: 'Wi-Fi का नाम अधिकतम 32 बाइट का होना चाहिए।'
+            },
+            'hr-HR': {
+                title: 'Konfiguracija mreže',
+                saved_wifi: 'Spremljene Wi-Fi mreže',
+                new_wifi: 'Nova Wi-Fi mreža',
+                ssid: 'Naziv Wi-Fi mreže:',
+                password: 'Lozinka:',
+                connect: 'Poveži',
+                connecting: 'Povezivanje...',
+                select_wifi: 'Odaberite Wi-Fi na 2,4 GHz:',
+                select_wifi_5g: 'Odaberite Wi-Fi:',
+                signal_strong: 'Jak signal',
+                signal_fair: 'Srednji signal',
+                signal_weak: 'Slab signal',
+                signal_unknown: 'Nepoznata jačina signala',
+                scanning: 'Skeniranje...',
+                wifi_tab: 'Konfiguracija Wi-Fi',
+                advanced_tab: 'Napredno',
+                save: 'Spremi',
+                settings_saved: 'Spremljeno',
+                config_success: 'Konfiguracija uspješna!',
+                save_failed: 'Spremanje nije uspjelo. Pokušajte ponovno.',
+                connection_failed: 'Povezivanje s Wi-Fi mrežom nije uspjelo. Provjerite naziv i lozinku.',
+                invalid_ssid: 'Naziv Wi-Fi mreže može imati najviše 32 bajta.'
+            },
+            'hu-HU': {
+                title: 'Hálózati konfiguráció',
+                saved_wifi: 'Mentett Wi-Fi hálózatok',
+                new_wifi: 'Új Wi-Fi hálózat',
+                ssid: 'Wi-Fi-hálózat neve:',
+                password: 'Jelszó:',
+                connect: 'Csatlakozás',
+                connecting: 'Csatlakozás...',
+                select_wifi: 'Válasszon 2,4 GHz-es Wi-Fi-t:',
+                select_wifi_5g: 'Válasszon Wi-Fi-t:',
+                signal_strong: 'Erős jel',
+                signal_fair: 'Közepes jel',
+                signal_weak: 'Gyenge jel',
+                signal_unknown: 'Ismeretlen jelerősség',
+                scanning: 'Keresés...',
+                wifi_tab: 'Wi-Fi konfiguráció',
+                advanced_tab: 'Speciális',
+                save: 'Mentés',
+                settings_saved: 'Mentve',
+                config_success: 'Sikeres konfiguráció!',
+                save_failed: 'A mentés sikertelen. Próbálja újra.',
+                connection_failed: 'A Wi-Fi-kapcsolat sikertelen. Ellenőrizze a nevet és a jelszót.',
+                invalid_ssid: 'A Wi-Fi-hálózat neve legfeljebb 32 bájt lehet.'
+            },
+            'id-ID': {
+                title: 'Konfigurasi Jaringan',
+                saved_wifi: 'Wi-Fi Tersimpan',
+                new_wifi: 'Wi-Fi Baru',
+                ssid: 'Nama Wi-Fi:',
+                password: 'Kata Sandi:',
+                connect: 'Hubungkan',
+                connecting: 'Menghubungkan...',
+                select_wifi: 'Pilih Wi-Fi 2,4 GHz:',
+                select_wifi_5g: 'Pilih Wi-Fi:',
+                signal_strong: 'Sinyal kuat',
+                signal_fair: 'Sinyal sedang',
+                signal_weak: 'Sinyal lemah',
+                signal_unknown: 'Kekuatan sinyal tidak diketahui',
+                scanning: 'Memindai...',
+                wifi_tab: 'Konfigurasi Wi-Fi',
+                advanced_tab: 'Lanjutan',
+                save: 'Simpan',
+                settings_saved: 'Tersimpan',
+                config_success: 'Konfigurasi berhasil!',
+                save_failed: 'Gagal menyimpan. Coba lagi.',
+                connection_failed: 'Gagal terhubung ke Wi-Fi. Periksa nama dan kata sandi.',
+                invalid_ssid: 'Nama Wi-Fi maksimal 32 byte.'
+            },
+            'it-IT': {
+                title: 'Configurazione di rete',
+                saved_wifi: 'Wi-Fi salvate',
+                new_wifi: 'Nuova Wi-Fi',
+                ssid: 'Nome Wi-Fi:',
+                password: 'Password:',
+                connect: 'Connetti',
+                connecting: 'Connessione in corso...',
+                select_wifi: 'Scegli una rete Wi-Fi a 2,4 GHz:',
+                select_wifi_5g: 'Scegli una rete Wi-Fi:',
+                signal_strong: 'Segnale forte',
+                signal_fair: 'Segnale medio',
+                signal_weak: 'Segnale debole',
+                signal_unknown: 'Intensità del segnale sconosciuta',
+                scanning: 'Scansione in corso...',
+                wifi_tab: 'Configurazione Wi-Fi',
+                advanced_tab: 'Avanzate',
+                save: 'Salva',
+                settings_saved: 'Salvato',
+                config_success: 'Configurazione riuscita!',
+                save_failed: 'Salvataggio non riuscito. Riprova.',
+                connection_failed: 'Connessione Wi-Fi non riuscita. Controlla il nome e la password.',
+                invalid_ssid: 'Il nome Wi-Fi non può superare 32 byte.'
+            },
+            'ja-JP': {
+                title: 'ネットワーク設定',
+                saved_wifi: '保存済みのWi-Fi',
+                new_wifi: '新しいWi-Fi',
+                ssid: 'Wi-Fi 名:',
+                password: 'パスワード:',
+                connect: '接続',
+                connecting: '接続中...',
+                select_wifi: '2.4 GHz の Wi-Fi を選択:',
+                select_wifi_5g: 'Wi-Fi を選択:',
+                signal_strong: '電波が強い',
+                signal_fair: '電波は中程度',
+                signal_weak: '電波が弱い',
+                signal_unknown: '電波強度が不明',
+                scanning: 'スキャン中...',
+                wifi_tab: 'Wi-Fi設定',
+                advanced_tab: '詳細設定',
+                save: '保存',
+                settings_saved: '保存しました',
+                config_success: '設定が完了しました！',
+                save_failed: '保存できませんでした。もう一度お試しください。',
+                connection_failed: 'Wi-Fi に接続できませんでした。名前とパスワードを確認してください。',
+                invalid_ssid: 'Wi-Fi 名は 32 バイト以内にしてください。'
+            },
+            'ko-KR': {
+                title: '네트워크 구성',
+                saved_wifi: '저장된 Wi-Fi',
+                new_wifi: '새 Wi-Fi',
+                ssid: 'Wi-Fi 이름:',
+                password: '비밀번호:',
+                connect: '연결',
+                connecting: '연결 중...',
+                select_wifi: '2.4 GHz Wi-Fi 선택:',
+                select_wifi_5g: 'Wi-Fi 선택:',
+                signal_strong: '강한 신호',
+                signal_fair: '보통 신호',
+                signal_weak: '약한 신호',
+                signal_unknown: '신호 세기를 알 수 없음',
+                scanning: '스캔 중...',
+                wifi_tab: 'Wi-Fi 구성',
+                advanced_tab: '고급',
+                save: '저장',
+                settings_saved: '저장됨',
+                config_success: '설정이 완료되었습니다!',
+                save_failed: '저장하지 못했습니다. 다시 시도하세요.',
+                connection_failed: 'Wi-Fi에 연결하지 못했습니다. 이름과 비밀번호를 확인하세요.',
+                invalid_ssid: 'Wi-Fi 이름은 최대 32바이트여야 합니다.'
+            },
+            'ms-MY': {
+                title: 'Konfigurasi Rangkaian',
+                saved_wifi: 'Wi-Fi Tersimpan',
+                new_wifi: 'Wi-Fi Baharu',
+                ssid: 'Nama Wi-Fi:',
+                password: 'Kata Laluan:',
+                connect: 'Sambung',
+                connecting: 'Menyambung...',
+                select_wifi: 'Pilih Wi-Fi 2.4 GHz:',
+                select_wifi_5g: 'Pilih Wi-Fi:',
+                signal_strong: 'Isyarat kuat',
+                signal_fair: 'Isyarat sederhana',
+                signal_weak: 'Isyarat lemah',
+                signal_unknown: 'Kekuatan isyarat tidak diketahui',
+                scanning: 'Mengimbas...',
+                wifi_tab: 'Konfigurasi Wi-Fi',
+                advanced_tab: 'Lanjutan',
+                save: 'Simpan',
+                settings_saved: 'Disimpan',
+                config_success: 'Konfigurasi berjaya!',
+                save_failed: 'Gagal menyimpan. Cuba lagi.',
+                connection_failed: 'Gagal menyambung ke Wi-Fi. Semak nama dan kata laluan.',
+                invalid_ssid: 'Nama Wi-Fi mestilah tidak melebihi 32 bait.'
+            },
+            'nb-NO': {
+                title: 'Nettverkskonfigurasjon',
+                saved_wifi: 'Lagrede Wi-Fi',
+                new_wifi: 'Nytt Wi-Fi',
+                ssid: 'Wi-Fi-navn:',
+                password: 'Passord:',
+                connect: 'Koble til',
+                connecting: 'Kobler til...',
+                select_wifi: 'Velg et 2,4 GHz Wi-Fi:',
+                select_wifi_5g: 'Velg et Wi-Fi:',
+                signal_strong: 'Sterkt signal',
+                signal_fair: 'Middels signal',
+                signal_weak: 'Svakt signal',
+                signal_unknown: 'Ukjent signalstyrke',
+                scanning: 'Skanner...',
+                wifi_tab: 'Wi-Fi-konfigurasjon',
+                advanced_tab: 'Avansert',
+                save: 'Lagre',
+                settings_saved: 'Lagret',
+                config_success: 'Konfigurasjonen var vellykket!',
+                save_failed: 'Kunne ikke lagre. Prøv igjen.',
+                connection_failed: 'Kunne ikke koble til Wi-Fi. Kontroller navn og passord.',
+                invalid_ssid: 'Wi-Fi-navnet kan være på maksimalt 32 byte.'
+            },
+            'nl-NL': {
+                title: 'Netwerkconfiguratie',
+                saved_wifi: 'Opgeslagen Wi-Fi',
+                new_wifi: 'Nieuwe Wi-Fi',
+                ssid: 'Wi-Fi-naam:',
+                password: 'Wachtwoord:',
+                connect: 'Verbinden',
+                connecting: 'Verbinden...',
+                select_wifi: 'Kies een 2,4 GHz-wifinetwerk:',
+                select_wifi_5g: 'Kies een wifinetwerk:',
+                signal_strong: 'Sterk signaal',
+                signal_fair: 'Gemiddeld signaal',
+                signal_weak: 'Zwak signaal',
+                signal_unknown: 'Signaalsterkte onbekend',
+                scanning: 'Scannen...',
+                wifi_tab: 'Wi-Fi-configuratie',
+                advanced_tab: 'Geavanceerd',
+                save: 'Opslaan',
+                settings_saved: 'Opgeslagen',
+                config_success: 'Configuratie gelukt!',
+                save_failed: 'Opslaan mislukt. Probeer het opnieuw.',
+                connection_failed: 'Verbinden met Wi-Fi mislukt. Controleer de naam en het wachtwoord.',
+                invalid_ssid: 'De Wi-Fi-naam mag maximaal 32 bytes lang zijn.'
+            },
+            'pl-PL': {
+                title: 'Konfiguracja sieci',
+                saved_wifi: 'Zapisane Wi-Fi',
+                new_wifi: 'Nowe Wi-Fi',
+                ssid: 'Nazwa Wi-Fi:',
+                password: 'Hasło:',
+                connect: 'Połącz',
+                connecting: 'Łączenie...',
+                select_wifi: 'Wybierz Wi-Fi w paśmie 2,4 GHz:',
+                select_wifi_5g: 'Wybierz Wi-Fi:',
+                signal_strong: 'Silny sygnał',
+                signal_fair: 'Średni sygnał',
+                signal_weak: 'Słaby sygnał',
+                signal_unknown: 'Nieznana siła sygnału',
+                scanning: 'Skanowanie...',
+                wifi_tab: 'Konfiguracja Wi-Fi',
+                advanced_tab: 'Zaawansowane',
+                save: 'Zapisz',
+                settings_saved: 'Zapisano',
+                config_success: 'Konfiguracja zakończona sukcesem!',
+                save_failed: 'Nie udało się zapisać. Spróbuj ponownie.',
+                connection_failed: 'Nie udało się połączyć z Wi-Fi. Sprawdź nazwę i hasło.',
+                invalid_ssid: 'Nazwa Wi-Fi może mieć najwyżej 32 bajty.'
+            },
+            'pt-PT': {
+                title: 'Configuração de rede',
+                saved_wifi: 'Wi-Fi guardadas',
+                new_wifi: 'Nova Wi-Fi',
+                ssid: 'Nome da rede Wi-Fi:',
+                password: 'Palavra-passe:',
+                connect: 'Ligar',
+                connecting: 'A ligar...',
+                select_wifi: 'Escolha uma rede Wi-Fi de 2,4 GHz:',
+                select_wifi_5g: 'Escolha uma rede Wi-Fi:',
+                signal_strong: 'Sinal forte',
+                signal_fair: 'Sinal médio',
+                signal_weak: 'Sinal fraco',
+                signal_unknown: 'Intensidade do sinal desconhecida',
+                scanning: 'A procurar...',
+                wifi_tab: 'Configuração Wi-Fi',
+                advanced_tab: 'Avançado',
+                save: 'Guardar',
+                settings_saved: 'Guardado',
+                config_success: 'Configuração bem-sucedida!',
+                save_failed: 'Não foi possível guardar. Tente novamente.',
+                connection_failed: 'Não foi possível ligar ao Wi-Fi. Verifique o nome e a palavra-passe.',
+                invalid_ssid: 'O nome da rede Wi-Fi pode ter, no máximo, 32 bytes.'
+            },
+            'ro-RO': {
+                title: 'Configurare rețea',
+                saved_wifi: 'Wi-Fi salvate',
+                new_wifi: 'Wi-Fi nou',
+                ssid: 'Nume Wi-Fi:',
+                password: 'Parolă:',
+                connect: 'Conectare',
+                connecting: 'Se conectează...',
+                select_wifi: 'Alegeți o rețea Wi-Fi de 2,4 GHz:',
+                select_wifi_5g: 'Alegeți o rețea Wi-Fi:',
+                signal_strong: 'Semnal puternic',
+                signal_fair: 'Semnal mediu',
+                signal_weak: 'Semnal slab',
+                signal_unknown: 'Intensitate necunoscută',
+                scanning: 'Se scanează...',
+                wifi_tab: 'Configurare Wi-Fi',
+                advanced_tab: 'Avansat',
+                save: 'Salvare',
+                settings_saved: 'Salvat',
+                config_success: 'Configurare reușită!',
+                save_failed: 'Salvarea a eșuat. Încercați din nou.',
+                connection_failed: 'Conectarea la Wi-Fi a eșuat. Verificați numele și parola.',
+                invalid_ssid: 'Numele Wi-Fi poate avea cel mult 32 de octeți.'
+            },
+            'ru-RU': {
+                title: 'Настройка сети',
+                saved_wifi: 'Сохраненные Wi-Fi',
+                new_wifi: 'Новая Wi-Fi',
+                ssid: 'Имя Wi-Fi:',
+                password: 'Пароль:',
+                connect: 'Подключить',
+                connecting: 'Подключение...',
+                select_wifi: 'Выберите Wi-Fi 2,4 ГГц:',
+                select_wifi_5g: 'Выберите Wi-Fi:',
+                signal_strong: 'Сильный сигнал',
+                signal_fair: 'Средний сигнал',
+                signal_weak: 'Слабый сигнал',
+                signal_unknown: 'Уровень сигнала неизвестен',
+                scanning: 'Сканирование...',
+                wifi_tab: 'Настройка Wi-Fi',
+                advanced_tab: 'Дополнительно',
+                save: 'Сохранить',
+                settings_saved: 'Сохранено',
+                config_success: 'Настройка успешно завершена!',
+                save_failed: 'Не удалось сохранить. Повторите попытку.',
+                connection_failed: 'Не удалось подключиться к Wi-Fi. Проверьте имя и пароль.',
+                invalid_ssid: 'Имя Wi-Fi должно занимать не более 32 байт.'
+            },
+            'sk-SK': {
+                title: 'Konfigurácia siete',
+                saved_wifi: 'Uložené Wi-Fi',
+                new_wifi: 'Nové Wi-Fi',
+                ssid: 'Názov Wi-Fi:',
+                password: 'Heslo:',
+                connect: 'Pripojiť',
+                connecting: 'Pripájanie...',
+                select_wifi: 'Vyberte Wi-Fi v pásme 2,4 GHz:',
+                select_wifi_5g: 'Vyberte Wi-Fi:',
+                signal_strong: 'Silný signál',
+                signal_fair: 'Stredný signál',
+                signal_weak: 'Slabý signál',
+                signal_unknown: 'Neznáma sila signálu',
+                scanning: 'Skenovanie...',
+                wifi_tab: 'Konfigurácia Wi-Fi',
+                advanced_tab: 'Pokročilé',
+                save: 'Uložiť',
+                settings_saved: 'Uložené',
+                config_success: 'Konfigurácia bola úspešná!',
+                save_failed: 'Uloženie zlyhalo. Skúste to znova.',
+                connection_failed: 'Pripojenie k Wi-Fi zlyhalo. Skontrolujte názov a heslo.',
+                invalid_ssid: 'Názov Wi-Fi môže mať najviac 32 bajtov.'
+            },
+            'sl-SI': {
+                title: 'Konfiguracija omrežja',
+                saved_wifi: 'Shranjeni Wi-Fi',
+                new_wifi: 'Nov Wi-Fi',
+                ssid: 'Ime Wi-Fi:',
+                password: 'Geslo:',
+                connect: 'Poveži',
+                connecting: 'Povezovanje...',
+                select_wifi: 'Izberite omrežje Wi-Fi 2,4 GHz:',
+                select_wifi_5g: 'Izberite omrežje Wi-Fi:',
+                signal_strong: 'Močan signal',
+                signal_fair: 'Srednje močan signal',
+                signal_weak: 'Šibek signal',
+                signal_unknown: 'Neznana moč signala',
+                scanning: 'Iskanje...',
+                wifi_tab: 'Konfiguracija Wi-Fi',
+                advanced_tab: 'Napredno',
+                save: 'Shrani',
+                settings_saved: 'Shranjeno',
+                config_success: 'Konfiguracija uspešna!',
+                save_failed: 'Shranjevanje ni uspelo. Poskusite znova.',
+                connection_failed: 'Povezava z Wi-Fi ni uspela. Preverite ime in geslo.',
+                invalid_ssid: 'Ime Wi-Fi ima lahko največ 32 bajtov.'
+            },
+            'sr-RS': {
+                title: 'Конфигурација мреже',
+                saved_wifi: 'Сачуване Wi-Fi мреже',
+                new_wifi: 'Нова Wi-Fi мрежа',
+                ssid: 'Назив Wi-Fi мреже:',
+                password: 'Лозинка:',
+                connect: 'Повежи',
+                connecting: 'Повезивање...',
+                select_wifi: 'Изаберите Wi-Fi на 2,4 GHz:',
+                select_wifi_5g: 'Изаберите Wi-Fi:',
+                signal_strong: 'Јак сигнал',
+                signal_fair: 'Средњи сигнал',
+                signal_weak: 'Слаб сигнал',
+                signal_unknown: 'Непозната јачина сигнала',
+                scanning: 'Скенирање...',
+                wifi_tab: 'Конфигурација Wi-Fi',
+                advanced_tab: 'Напредно',
+                save: 'Сачувај',
+                settings_saved: 'Сачувано',
+                config_success: 'Конфигурација је успешна!',
+                save_failed: 'Чување није успело. Покушајте поново.',
+                connection_failed: 'Повезивање на Wi-Fi није успело. Проверите назив и лозинку.',
+                invalid_ssid: 'Назив Wi-Fi мреже може имати највише 32 бајта.'
+            },
+            'sv-SE': {
+                title: 'Nätverkskonfiguration',
+                saved_wifi: 'Sparade Wi-Fi',
+                new_wifi: 'Nytt Wi-Fi',
+                ssid: 'Wi-Fi-namn:',
+                password: 'Lösenord:',
+                connect: 'Anslut',
+                connecting: 'Ansluter...',
+                select_wifi: 'Välj ett 2,4 GHz-Wi-Fi:',
+                select_wifi_5g: 'Välj ett Wi-Fi:',
+                signal_strong: 'Stark signal',
+                signal_fair: 'Medelstark signal',
+                signal_weak: 'Svag signal',
+                signal_unknown: 'Okänd signalstyrka',
+                scanning: 'Söker...',
+                wifi_tab: 'Wi-Fi-konfiguration',
+                advanced_tab: 'Avancerat',
+                save: 'Spara',
+                settings_saved: 'Sparat',
+                config_success: 'Konfigurationen lyckades!',
+                save_failed: 'Det gick inte att spara. Försök igen.',
+                connection_failed: 'Det gick inte att ansluta till Wi-Fi. Kontrollera namn och lösenord.',
+                invalid_ssid: 'Wi-Fi-namnet får vara högst 32 byte.'
+            },
+            'th-TH': {
+                title: 'การกำหนดค่าเครือข่าย',
+                saved_wifi: 'Wi-Fi ที่บันทึกไว้',
+                new_wifi: 'Wi-Fi ใหม่',
+                ssid: 'ชื่อ Wi-Fi:',
+                password: 'รหัสผ่าน:',
+                connect: 'เชื่อมต่อ',
+                connecting: 'กำลังเชื่อมต่อ...',
+                select_wifi: 'เลือก Wi-Fi ย่าน 2.4 GHz:',
+                select_wifi_5g: 'เลือก Wi-Fi:',
+                signal_strong: 'สัญญาณแรง',
+                signal_fair: 'สัญญาณปานกลาง',
+                signal_weak: 'สัญญาณอ่อน',
+                signal_unknown: 'ไม่ทราบความแรงของสัญญาณ',
+                scanning: 'กำลังสแกน...',
+                wifi_tab: 'การกำหนดค่า Wi-Fi',
+                advanced_tab: 'ขั้นสูง',
+                save: 'บันทึก',
+                settings_saved: 'บันทึกแล้ว',
+                config_success: 'กำหนดค่าสำเร็จ!',
+                save_failed: 'บันทึกไม่สำเร็จ โปรดลองอีกครั้ง',
+                connection_failed: 'เชื่อมต่อ Wi-Fi ไม่สำเร็จ ตรวจสอบชื่อและรหัสผ่าน',
+                invalid_ssid: 'ชื่อ Wi-Fi ต้องไม่เกิน 32 ไบต์'
+            },
+            'tr-TR': {
+                title: 'Ağ Yapılandırması',
+                saved_wifi: 'Kaydedilmiş Wi-Fi',
+                new_wifi: 'Yeni Wi-Fi',
+                ssid: 'Wi-Fi adı:',
+                password: 'Şifre:',
+                connect: 'Bağlan',
+                connecting: 'Bağlanıyor...',
+                select_wifi: '2,4 GHz Wi-Fi seçin:',
+                select_wifi_5g: 'Wi-Fi seçin:',
+                signal_strong: 'Güçlü sinyal',
+                signal_fair: 'Orta sinyal',
+                signal_weak: 'Zayıf sinyal',
+                signal_unknown: 'Sinyal gücü bilinmiyor',
+                scanning: 'Taranıyor...',
+                wifi_tab: 'Wi-Fi Yapılandırması',
+                advanced_tab: 'Gelişmiş',
+                save: 'Kaydet',
+                settings_saved: 'Kaydedildi',
+                config_success: 'Yapılandırma başarılı!',
+                save_failed: 'Kaydedilemedi. Tekrar deneyin.',
+                connection_failed: 'Wi-Fi\'ye bağlanılamadı. Adı ve parolayı kontrol edin.',
+                invalid_ssid: 'Wi-Fi adı en fazla 32 bayt olmalıdır.'
+            },
+            'uk-UA': {
+                title: 'Налаштування мережі',
+                saved_wifi: 'Збережені Wi-Fi',
+                new_wifi: 'Нова Wi-Fi',
+                ssid: 'Назва Wi-Fi:',
+                password: 'Пароль:',
+                connect: 'Підключити',
+                connecting: 'Підключення...',
+                select_wifi: 'Виберіть Wi-Fi 2,4 ГГц:',
+                select_wifi_5g: 'Виберіть Wi-Fi:',
+                signal_strong: 'Сильний сигнал',
+                signal_fair: 'Середній сигнал',
+                signal_weak: 'Слабкий сигнал',
+                signal_unknown: 'Рівень сигналу невідомий',
+                scanning: 'Сканування...',
+                wifi_tab: 'Налаштування Wi-Fi',
+                advanced_tab: 'Додатково',
+                save: 'Зберегти',
+                settings_saved: 'Збережено',
+                config_success: 'Налаштування успішно завершено!',
+                save_failed: 'Не вдалося зберегти. Спробуйте ще раз.',
+                connection_failed: 'Не вдалося підключитися до Wi-Fi. Перевірте назву та пароль.',
+                invalid_ssid: 'Назва Wi-Fi має займати не більше 32 байтів.'
+            },
+            'vi-VN': {
+                title: 'Cấu hình mạng',
+                saved_wifi: 'Wi-Fi đã lưu',
+                new_wifi: 'Wi-Fi mới',
+                ssid: 'Tên Wi-Fi:',
+                password: 'Mật khẩu:',
+                connect: 'Kết nối',
+                connecting: 'Đang kết nối...',
+                select_wifi: 'Chọn Wi-Fi 2,4 GHz:',
+                select_wifi_5g: 'Chọn Wi-Fi:',
+                signal_strong: 'Tín hiệu mạnh',
+                signal_fair: 'Tín hiệu trung bình',
+                signal_weak: 'Tín hiệu yếu',
+                signal_unknown: 'Chưa rõ cường độ tín hiệu',
+                scanning: 'Đang quét...',
+                wifi_tab: 'Cấu hình Wi-Fi',
+                advanced_tab: 'Tùy chọn nâng cao',
+                save: 'Lưu',
+                settings_saved: 'Đã lưu',
+                config_success: 'Cấu hình thành công!',
+                save_failed: 'Không lưu được. Hãy thử lại.',
+                connection_failed: 'Không kết nối được Wi-Fi. Kiểm tra tên và mật khẩu.',
+                invalid_ssid: 'Tên Wi-Fi không được vượt quá 32 byte.'
+            },
+            'zh-CN': {
+                title: '网络配置',
+                saved_wifi: '已保存的 Wi-Fi',
+                new_wifi: '新的 Wi-Fi',
+                ssid: 'Wi-Fi 名称:',
+                password: '密码:',
+                connect: '连接',
+                connecting: '正在连接...',
+                select_wifi: '选择 2.4GHz Wi-Fi:',
+                select_wifi_5g: '选择 Wi-Fi:',
+                signal_strong: '信号强',
+                signal_fair: '信号中等',
+                signal_weak: '信号弱',
+                signal_unknown: '信号强度未知',
+                scanning: '扫描中...',
+                wifi_tab: 'Wi-Fi 配置',
+                advanced_tab: '高级选项',
+                save: '保存',
+                settings_saved: '已保存',
+                config_success: '配置成功！',
+                save_failed: '保存失败，请重试。',
+                connection_failed: '连接 Wi-Fi 失败，请检查名称和密码。',
+                invalid_ssid: 'Wi-Fi 名称最多为 32 字节。'
+            },
+            'zh-TW': {
+                title: '網路設定',
+                saved_wifi: '已儲存的 Wi-Fi',
+                new_wifi: '新的 Wi-Fi',
+                ssid: 'Wi-Fi 名稱:',
+                password: '密碼:',
+                connect: '連接',
+                connecting: '正在連接...',
+                select_wifi: '選擇 2.4GHz Wi-Fi:',
+                select_wifi_5g: '選擇 Wi-Fi:',
+                signal_strong: '訊號強',
+                signal_fair: '訊號中等',
+                signal_weak: '訊號弱',
+                signal_unknown: '訊號強度未知',
+                scanning: '掃描中...',
+                wifi_tab: 'Wi-Fi 設定',
+                advanced_tab: '進階選項',
+                save: '儲存',
+                settings_saved: '已儲存',
+                config_success: '設定成功！',
+                save_failed: '儲存失敗，請重試。',
+                connection_failed: '連線 Wi-Fi 失敗，請檢查名稱和密碼。',
+                invalid_ssid: 'Wi-Fi 名稱最多為 32 位元組。'
+            }
+        };
+
+        // ========== Language Mapping ==========
+        // Maps browser language codes to supported language codes
+        const languageMap = {
+            // Arabic
+            'ar': 'ar-SA', 'ar-SA': 'ar-SA', 'ar-EG': 'ar-SA', 'ar-AE': 'ar-SA',
+            // Bulgarian
+            'bg': 'bg-BG', 'bg-BG': 'bg-BG',
+            // Catalan
+            'ca': 'ca-ES', 'ca-ES': 'ca-ES',
+            // Czech
+            'cs': 'cs-CZ', 'cs-CZ': 'cs-CZ',
+            // Danish
+            'da': 'da-DK', 'da-DK': 'da-DK',
+            // German
+            'de': 'de-DE', 'de-DE': 'de-DE', 'de-AT': 'de-DE', 'de-CH': 'de-DE',
+            // Greek
+            'el': 'el-GR', 'el-GR': 'el-GR',
+            // English
+            'en': 'en-US', 'en-US': 'en-US', 'en-GB': 'en-US', 'en-CA': 'en-US', 'en-AU': 'en-US',
+            // Spanish
+            'es': 'es-ES', 'es-ES': 'es-ES', 'es-MX': 'es-ES', 'es-AR': 'es-ES',
+            // Persian
+            'fa': 'fa-IR', 'fa-IR': 'fa-IR',
+            // Finnish
+            'fi': 'fi-FI', 'fi-FI': 'fi-FI',
+            // Filipino
+            'fil': 'fil-PH', 'fil-PH': 'fil-PH', 'tl': 'fil-PH',
+            // French
+            'fr': 'fr-FR', 'fr-FR': 'fr-FR', 'fr-CA': 'fr-FR', 'fr-BE': 'fr-FR',
+            // Hebrew
+            'he': 'he-IL', 'he-IL': 'he-IL', 'iw': 'he-IL',
+            // Hindi
+            'hi': 'hi-IN', 'hi-IN': 'hi-IN',
+            // Croatian
+            'hr': 'hr-HR', 'hr-HR': 'hr-HR',
+            // Hungarian
+            'hu': 'hu-HU', 'hu-HU': 'hu-HU',
+            // Indonesian
+            'id': 'id-ID', 'id-ID': 'id-ID',
+            // Italian
+            'it': 'it-IT', 'it-IT': 'it-IT', 'it-CH': 'it-IT',
+            // Japanese
+            'ja': 'ja-JP', 'ja-JP': 'ja-JP',
+            // Korean
+            'ko': 'ko-KR', 'ko-KR': 'ko-KR',
+            // Malay
+            'ms': 'ms-MY', 'ms-MY': 'ms-MY',
+            // Norwegian
+            'nb': 'nb-NO', 'nb-NO': 'nb-NO', 'no': 'nb-NO', 'nn': 'nb-NO',
+            // Dutch
+            'nl': 'nl-NL', 'nl-NL': 'nl-NL', 'nl-BE': 'nl-NL',
+            // Polish
+            'pl': 'pl-PL', 'pl-PL': 'pl-PL',
+            // Portuguese
+            'pt': 'pt-PT', 'pt-PT': 'pt-PT', 'pt-BR': 'pt-PT',
+            // Romanian
+            'ro': 'ro-RO', 'ro-RO': 'ro-RO',
+            // Russian
+            'ru': 'ru-RU', 'ru-RU': 'ru-RU',
+            // Slovak
+            'sk': 'sk-SK', 'sk-SK': 'sk-SK',
+            // Slovenian
+            'sl': 'sl-SI', 'sl-SI': 'sl-SI',
+            // Serbian
+            'sr': 'sr-RS', 'sr-RS': 'sr-RS',
+            // Swedish
+            'sv': 'sv-SE', 'sv-SE': 'sv-SE',
+            // Thai
+            'th': 'th-TH', 'th-TH': 'th-TH',
+            // Turkish
+            'tr': 'tr-TR', 'tr-TR': 'tr-TR',
+            // Ukrainian
+            'uk': 'uk-UA', 'uk-UA': 'uk-UA',
+            // Vietnamese
+            'vi': 'vi-VN', 'vi-VN': 'vi-VN',
+            // Chinese
+            'zh': 'zh-CN', 'zh-CN': 'zh-CN', 'zh-TW': 'zh-TW', 'zh-HK': 'zh-TW'
+        };
+
+        // ========== Helper Functions ==========
+
+        function translate(key) {
+            const lang = document.getElementById('language').value;
+            return (translations[lang] || {})[key] || translations['en-US'][key];
+        }
+
+        function showLocalizedMessage(id, key) {
+            const element = document.getElementById(id);
+            element.setAttribute('data-lang-message', key);
+            element.textContent = translate(key);
+        }
+
+        function clearLocalizedMessage(id) {
+            const element = document.getElementById(id);
+            element.removeAttribute('data-lang-message');
+            element.textContent = '';
+        }
+
+        function responseError(message, fallbackKey) {
+            const keys = {
+                'Invalid SSID': 'invalid_ssid'
+            };
+            const error = new Error(message || fallbackKey);
+            error.translationKey = Object.prototype.hasOwnProperty.call(keys, message) ? keys[message] : fallbackKey;
+            return error;
+        }
+        
+        /**
+         * Get supported language code from browser language
+         */
+        function getSupportedLanguage(lang) {
+            // First try exact match
+            if (languageMap[lang]) {
+                return languageMap[lang];
+            }
+            // Then try to match only the main language code
+            const mainLang = lang.split('-')[0];
+            if (languageMap[mainLang]) {
+                return languageMap[mainLang];
+            }
+            // If no match, return English
+            return 'en-US';
+        }
+
+        /**
+         * Change the page language
+         */
+        function changeLanguage() {
+            const lang = document.getElementById('language').value;
+            
+            // Check if language is valid
+            if (!translations[lang]) {
+                console.warn(`Unsupported language: ${lang}, defaulting to English`);
+                document.getElementById('language').value = 'en-US';
+                return changeLanguage();
+            }
+            
+            // Set page title
+            document.title = translations[lang].title;
+            document.documentElement.lang = lang;
+            document.documentElement.dir = ['ar-SA', 'fa-IR', 'he-IL'].includes(lang) ? 'rtl' : 'ltr';
+            
+            // Update text content
+            document.querySelectorAll('[data-lang]').forEach(element => {
+                const key = element.getAttribute('data-lang');
+                element.textContent = translations[lang][key] || translations['en-US'][key] || element.textContent;
+            });
+
+            // Update input values
+            document.querySelectorAll('[data-lang-value]').forEach(element => {
+                const key = element.getAttribute('data-lang-value');
+                element.value = translations[lang][key] || translations['en-US'][key] || element.value;
+            });
+            document.querySelectorAll('[data-lang-placeholder]').forEach(element => {
+                const key = element.getAttribute('data-lang-placeholder');
+                element.placeholder = translations[lang][key] || translations['en-US'][key];
+            });
+            document.querySelectorAll('[data-lang-aria-label]').forEach(element => {
+                const key = element.getAttribute('data-lang-aria-label');
+                element.setAttribute('aria-label', translations[lang][key] || translations['en-US'][key]);
+            });
+            document.querySelectorAll('[data-lang-message]').forEach(element => {
+                element.textContent = translate(element.getAttribute('data-lang-message'));
+            });
+            
+            // Update AP list text based on 5G support
+            const apList = document.getElementById('ap_list');
+            if (apList.firstChild) {
+                const selectText = support5G ? translations[lang].select_wifi_5g : translations[lang].select_wifi;
+                apList.firstChild.textContent = selectText;
+            }
+            
+            // Save language preference
+            localStorage.setItem('preferred_language', lang);
+            portalAdvanced.refreshLanguage();
+        }
+
+        // ========== Wi-Fi List Management ==========
+        
+        /**
+         * Render saved Wi-Fi list
+         */
+        function renderSavedList(data) {
+            const savedListContainer = document.getElementById('saved_list_container');
+            const savedList = document.getElementById('saved_list');
+            savedList.innerHTML = '';
+            
+            data.forEach((ssid, index) => {
+                const li = document.createElement('li');
+                let html = "<span></span>";
+                
+                // Only add priority and delete buttons after the first item
+                if (index > 0) {
+                    html += ` <span>
+                        <button type="button" onclick="setDefaultItem(this, ${index})">⬆️</button>
+                        <button type="button" onclick="deleteItem(this, ${index})">❌</button>
+                    </span>`;
+                } else {
+                    html += ` <span><button type="button" onclick="deleteItem(this, ${index})">❌</button></span>`;
+                }
+                
+                li.innerHTML = html;
+                li.firstChild.textContent = ssid;
+                savedList.appendChild(li);
+            });
+            
+            // Show/hide container based on whether there are saved networks
+            savedListContainer.style.display = data.length > 0 ? 'block' : 'none';
+        }
+
+        /**
+         * Delete saved Wi-Fi network
+         */
+        function deleteItem(item, index) {
+            item.disabled = true;
+            fetch('/saved/delete?index=' + index)
+                .then(response => response.json())
+                .then(data => {
+                    loadSavedList();
+            });
+        }
+
+        /**
+         * Set default Wi-Fi network (move to top)
+         */
+        function setDefaultItem(item, index) {
+            item.disabled = true;
+            fetch('/saved/set_default?index=' + index)
+                .then(response => response.json())
+                .then(data => {
+                    loadSavedList();
+            });
+        }
+
+        /**
+         * Load saved Wi-Fi list from server
+         */
+        function loadSavedList() {
+            fetch('/saved/list')
+                .then(response => response.json())
+                .then(data => {
+                    renderSavedList(data);
+                });
+        }
+
+        /**
+         * Load available Wi-Fi networks
+         */
+        function loadAPList() {
+            if (button.disabled) {
+                return;
+            }
+
+            const lang = document.getElementById('language').value;
+            const apList = document.getElementById('ap_list');
+
+            // Check if AP list already has content
+            const hasExistingAPs = apList.querySelector('a') !== null;
+
+            // Only show scanning text if there's no existing AP list
+            if (!hasExistingAPs) {
+                apList.innerHTML = '<p class="scanning">' + translations[lang].scanning + '</p>';
+            }
+
+            fetch('/scan')
+                .then(response => response.json())
+                .then(data => {
+                    // Update global 5G support status
+                    support5G = data.support_5g;
+                    const lang = document.getElementById('language').value;
+                    
+                    // Use select_wifi_5g if 5G is supported, otherwise use select_wifi
+                    const selectText = support5G ? translations[lang].select_wifi_5g : translations[lang].select_wifi;
+                    apList.innerHTML = '<p>' + selectText + '</p>';
+                    
+                    // Iterate through available APs
+                    data.aps.forEach(ap => {
+                        const link = document.createElement('a');
+                        link.href = '#';
+                        const name = document.createElement('span');
+                        name.className = 'ap-name';
+                        name.setAttribute('dir', 'auto');
+                        name.textContent = ap.ssid;
+                        link.appendChild(name);
+
+                        const details = document.createElement('span');
+                        details.className = 'ap-details';
+                        const signal = document.createElement('span');
+                        signal.className = 'signal-bars';
+                        const strength = Number.isFinite(ap.rssi) ? (ap.rssi >= -55 ? 3 : ap.rssi >= -70 ? 2 : 1) : 0;
+                        const signalKey = ['signal_unknown', 'signal_weak', 'signal_fair', 'signal_strong'][strength];
+                        signal.setAttribute('role', 'img');
+                        signal.setAttribute('data-lang-aria-label', signalKey);
+                        signal.setAttribute('aria-label', translations[lang][signalKey] || translations['en-US'][signalKey]);
+                        for (let i = 0; i < 3; i++) {
+                            const bar = document.createElement('span');
+                            if (i < strength) bar.className = 'active';
+                            signal.appendChild(bar);
+                        }
+                        details.appendChild(signal);
+                        const security = document.createElement('span');
+                        security.textContent = ap.authmode === 0 ? '🌐' : '🔒';
+                        details.appendChild(security);
+                        link.appendChild(details);
+                        
+                        link.addEventListener('click', event => {
+                            event.preventDefault();
+                            ssid.value = ap.ssid;
+                            ssid.setAttribute('readonly', '');
+                            ssid.blur();
+                        });
+                        
+                        apList.appendChild(link);
+                    });
+                    
+                    // Refresh AP list every 5 seconds
+                    setTimeout(loadAPList, 5000);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // On error, try again after 5 seconds
+                    setTimeout(loadAPList, 5000);
+                });
+        }
+
+        // ========== Form Submission ==========
+        
+        /**
+         * Submit Wi-Fi connection form
+         */
+        async function submitForm(event) {
+            event.preventDefault();
+            button.disabled = true;
+            clearLocalizedMessage('error');
+
+            // Show loading animation
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.classList.add('show');
+
+            const payload = {
+                ssid: ssid.value,
+                password: document.getElementById('password').value
+            };
+
+            try {
+                const response = await fetch('/submit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    throw responseError(data.error, 'connection_failed');
+                }
+
+                // Connection successful, redirect to done page with localized copy.
+                button.disabled = false;
+                const lang = document.getElementById('language').value;
+                const successMessage = (translations[lang] && translations[lang].config_success) ||
+                    translations['en-US'].config_success;
+                const doneUrl = new URL('/done.html', window.location.href);
+                doneUrl.searchParams.set('lang', lang);
+                doneUrl.searchParams.set('message', successMessage);
+                window.top.location.href = doneUrl.pathname + doneUrl.search;
+            } catch (err) {
+                // Hide loading animation on error
+                loadingOverlay.classList.remove('show');
+                showLocalizedMessage('error', (err && err.translationKey) || 'connection_failed');
+                button.disabled = false;
+            }
+        }
+
+        // ========== UI Functions ==========
+        
+        /**
+         * Switch between tabs
+         */
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Activate selected tab
+            document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            if (tabName === 'advanced') portalAdvanced.load();
+        }
+
+        // ========== Initialization ==========
+        
+        /**
+         * Initialize page on DOM load
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get language setting from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const langParam = urlParams.get('lang');
+            
+            // Get browser language
+            const browserLang = navigator.language || navigator.userLanguage;
+            
+            // Priority: URL parameter > local storage > browser language setting
+            const savedLang = langParam || 
+                             localStorage.getItem('preferred_language') || 
+                             getSupportedLanguage(browserLang);
+            
+            document.getElementById('language').value = savedLang;
+            changeLanguage();
+            if (urlParams.get('panel') === 'advanced') switchTab('advanced');
+            else {loadSavedList(); loadAPList();}
+            if (urlParams.has('panel')) {
+                const field = document.getElementById('password');
+                const toggle = document.createElement('button');
+                toggle.type = 'button'; toggle.textContent = 'Show password';
+                toggle.onclick = () => {field.type = field.type === 'password' ? 'text' : 'password';toggle.textContent = field.type === 'password' ? 'Show password':'Hide password';};
+                field.after(toggle);
+            }
+        });
+
+        /**
+         * Handle browser back button
+         */
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                loadSavedList();
+            }
+        });
+
+        /**
+         * SSID input focus handling.
+         * The field stays readonly so the captive-portal webview cannot auto-focus it
+         * and show the on-screen keyboard before the user does anything. We only lift
+         * readonly when the user directly taps the SSID field; selecting an AP or a
+         * scan refresh must not move focus back to SSID.
+         */
+        let allowSsidFocus = false;
+        function isSsidInteraction(event) {
+            const target = event.target;
+            return target === ssid || (target.closest && target.closest('label[for="ssid"]'));
+        }
+        ['touchstart', 'mousedown', 'pointerdown'].forEach(eventName => {
+            document.addEventListener(eventName, event => {
+                allowSsidFocus = isSsidInteraction(event);
+                if (allowSsidFocus) {
+                    ssid.removeAttribute('readonly');
+                }
+            }, { capture: true });
+        });
+        ssid.addEventListener('focus', () => {
+            if (!allowSsidFocus) {
+                // Reject auto focus from captive-portal webviews or AP list refreshes.
+                ssid.blur();
+                return;
+            }
+            ssid.removeAttribute('readonly');
+        });
+        ssid.addEventListener('blur', () => {
+            allowSsidFocus = false;
+            ssid.setAttribute('readonly', '');
+        });
+    </script>
+</body>
+</html>

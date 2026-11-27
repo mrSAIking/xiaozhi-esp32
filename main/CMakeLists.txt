@@ -1210,7 +1210,7 @@ endif()
 if(IDF_TARGET STREQUAL "esp32s3")
     # The minimal build must discover espcoredump before reading board Kconfig.
     # Only the anime board enables the UART dump destination by default.
-    list(APPEND MAIN_PRIV_REQUIRES_EXTRA esp_driver_usb_serial_jtag espcoredump)
+    list(APPEND MAIN_PRIV_REQUIRES_EXTRA esp_driver_usb_serial_jtag espcoredump esp_http_client esp_http_server esp_timer)
 endif()
 idf_component_register(SRCS ${SOURCES}
                     EMBED_FILES ${LANG_SOUNDS} ${COMMON_SOUNDS}
@@ -1245,6 +1245,10 @@ idf_component_register(SRCS ${SOURCES}
                     )
 
 if(CONFIG_BOARD_TYPE_ANIME_COMPANION_S3 AND NOT CMAKE_BUILD_EARLY_EXPANSION)
+    set(aura_web "${PROJECT_DIR}/main/boards/anime-companion-s3/web")
+    foreach(asset aura_boot.rgb565 aura_logo.webp aura_portal.html.gz)
+        target_add_binary_data(${COMPONENT_LIB} "${aura_web}/${asset}" BINARY)
+    endforeach()
     set(avatar_root "${PROJECT_DIR}/character/aura")
     set(avatar_out "${CMAKE_CURRENT_BINARY_DIR}/avatar")
     set(packer "${PROJECT_DIR}/scripts/pack_anime_assets.py")

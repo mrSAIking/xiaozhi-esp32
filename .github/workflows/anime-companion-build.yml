@@ -45,7 +45,9 @@ jobs:
         if: matrix.spi_mhz == 10
         with:
           name: desktop-previews-${{ github.sha }}
-          path: previews/*.gif
+          path: |
+            previews/*.gif
+            main/boards/anime-companion-s3/web/*preview.png
           if-no-files-found: error
       - name: Build ESP32-S3 N16R8 firmware
         run: |

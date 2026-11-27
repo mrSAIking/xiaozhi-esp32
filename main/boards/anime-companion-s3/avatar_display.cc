@@ -10,6 +10,7 @@
 #include "companion_index.h"
 #include "lvgl_font.h"
 
+extern "C" const uint8_t boot_pixels[] asm("_binary_aura_boot_rgb565_start");
 extern "C" const uint16_t companion_pixels[] asm("_binary_companion_pixels_bin_start");
 
 namespace {
@@ -29,6 +30,8 @@ AvatarDisplay::AvatarDisplay() : LcdDisplay(nullptr, nullptr, kWidth, kHeight) {
 #if CONFIG_ANIME_PANEL_SELF_TEST
     panel_driver_.RunColorTest();
 #endif
+    const lv_area_t entire{0, 0, kWidth - 1, kHeight - 1};
+    panel_driver_.Flush(entire, boot_pixels, kWidth * 2, kFrameBytes);
     ESP_ERROR_CHECK(heap_caps_check_integrity_all(true) ? ESP_OK : ESP_FAIL);
     ESP_LOGI("Avatar", "Starting LVGL port");
     lvgl_port_cfg_t cfg = ESP_LVGL_PORT_INIT_CONFIG();
@@ -73,6 +76,11 @@ AvatarDisplay::AvatarDisplay() : LcdDisplay(nullptr, nullptr, kWidth, kHeight) {
     ESP_LOGI("Avatar", "LVGL display registered, PSRAM strip=%zu bytes, refresh paused", bytes);
 }
 
+void AvatarDisplay::ConnectingWifi() {
+    DisplayLockGuard guard(this);
+    if (boot_status_)
+        lv_label_set_text(boot_status_, "Connecting to Wi-Fi");
+}
 void AvatarDisplay::AfterRefresh(void (*callback)()) {
     DisplayLockGuard guard(this);
     after_refresh_ = callback;
@@ -116,6 +124,28 @@ void AvatarDisplay::SetupUI() {
     lv_image_set_src(image_, &descriptor_);
     lv_obj_set_pos(image_, 0, 0);
     CreateOverlays();
+    boot_screen_ = lv_obj_create(nullptr);
+    lv_obj_remove_style_all(boot_screen_);
+    boot_image_ = descriptor_;
+    boot_image_.data = boot_pixels;
+    auto* logo = lv_image_create(boot_screen_);
+    lv_image_set_src(logo, &boot_image_);
+    auto* cover = lv_obj_create(boot_screen_);
+    lv_obj_remove_style_all(cover);
+    lv_obj_set_pos(cover, 0, 302);
+    lv_obj_set_size(cover, 320, 66);
+    lv_obj_set_style_bg_color(cover, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(cover, 255, 0);
+    boot_status_ = lv_label_create(cover);
+    lv_label_set_text(boot_status_, "Initializing");
+    lv_obj_set_style_text_color(boot_status_, lv_color_hex(0xd8d4df), 0);
+    lv_obj_align(boot_status_, LV_ALIGN_TOP_MID, 0, 8);
+    boot_fill_ = lv_obj_create(cover);
+    lv_obj_remove_style_all(boot_fill_);
+    lv_obj_set_size(boot_fill_, 24, 3);
+    lv_obj_set_style_bg_color(boot_fill_, lv_color_hex(0x9333ea), 0);
+    lv_obj_set_style_bg_opa(boot_fill_, 255, 0);
+    lv_screen_load(boot_screen_);
     lv_timer_create(
         [](lv_timer_t* timer) {
             static_cast<AvatarDisplay*>(lv_timer_get_user_data(timer))->Tick();
@@ -286,7 +316,14 @@ void AvatarDisplay::Tick() {
     if (!can_preview)
         preview_until_ = 0;
     if (!show && ms >= preview_until_) {
-        if (lv_screen_active() == avatar_screen_) {
+        if (state == kDeviceStateStarting && boot_screen_) {
+            if (lv_screen_active() != boot_screen_)
+                lv_screen_load(boot_screen_);
+            int phase = (ms / 12) % 144;
+            lv_obj_set_pos(boot_fill_, 112 + (phase <= 72 ? phase : 144 - phase), 43);
+            return;
+        }
+        if (lv_screen_active() != setup_screen_) {
             stats_start_us_ = pose_start_us_ = 0;
             lv_screen_load(setup_screen_);
         }

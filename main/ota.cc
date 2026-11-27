@@ -264,10 +264,14 @@ NetworkResult<> Ota::CheckVersion() {
             double ts = timestamp->valuedouble;
             
             // 如果有时区偏移，计算本地时间
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+            (void)timezone_offset; // Aura stores UTC; TZ handles presentation.
+#else
             if (cJSON_IsNumber(timezone_offset)) {
                 ts += (timezone_offset->valueint * 60 * 1000); // 转换分钟为毫秒
             }
             
+#endif
             tv.tv_sec = (time_t)(ts / 1000);  // 转换毫秒为秒
             tv.tv_usec = (suseconds_t)((long long)ts % 1000) * 1000;  // 剩余的毫秒转换为微秒
             settimeofday(&tv, NULL);

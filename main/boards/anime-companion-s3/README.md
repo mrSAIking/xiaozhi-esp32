@@ -38,3 +38,12 @@ If the solid colors work but the UI fails, enable `CONFIG_ANIME_SETUP_UI_ONLY` i
 Each firmware artifact includes `merged-binary.bin`, `xiaozhi.elf` and `xiaozhi.map`. Match the panic's ELF SHA-256 prefix against the ELF before using `xtensa-esp32s3-elf-addr2line -aipfC -e xiaozhi.elf` with the reported PCs.
 
 For a provisioning audio comparison, boot into the setup AP with BOOT released and capture the log through prompt playback. On a second boot with the same image and power source, press and hold BOOT after the blue test screen appears. Release it when the serial console reports `Silent provisioning comparison selected`. Both boots render the same setup prompt. The comparison skips its Opus packets for that boot only. A crash before `Provisioning refresh complete` precedes submission of the prompt. If the assertion returns, capture the UART output through `ESP32 CORE DUMP END` and use the ELF packaged with that image.
+
+## Local control
+Connect to the Project-Aura hotspot and open http://192.168.4.1. In Advanced Settings, generate and save a home access code and keep a copy. After connecting the device to your home network, open its LAN IP or http://project-aura.local and enter the code. The local HTTP interface is intended for a trusted private Wi-Fi network. Home mode exposes weather, clock and device status. Wi-Fi credentials, OTA, sleep and Tavily configuration stay on the setup hotspot.
+
+Enter an OpenWeather key, city and optional two-letter country. Save offline if necessary. On a connected device, Find cities returns matching localities and their coordinates. Select a result to resolve ambiguous names. A successful test requires an HTTPS current-weather response. Home observations refresh after about 12 minutes. Current minimum and maximum temperatures refer to the observation. No daily forecast is requested.
+
+Clock defaults are Asia/Kolkata, 12-hour display and automatic SNTP. Until SNTP confirms an update the control panel reports pending sync. Voice tools are `self.time.get_current` and `self.weather.get_current`.
+
+The vendored 78/esp-wifi-connect 4.0.0 base is upstream revision 2b7f8926f3e357a5a52ad5cc95f39669710d63c7. Board-specific routes share the upstream provisioning server. Home mode runs its own server and mDNS registration. The original supplied Project Aura PNG was scaled proportionally and encoded for the embedded logo and 320 x 480 RGB565 boot screen.
