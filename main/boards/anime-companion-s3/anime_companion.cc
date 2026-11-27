@@ -157,6 +157,13 @@ public:
         return &codec;
     }
 
+    void SetSpeakerVolume(int volume) {
+        std::lock_guard lock(controls_);
+        if (GetAudioCodec()->output_volume() != volume) {
+            GetAudioCodec()->SetOutputVolume(volume);
+            display_.Volume(volume);
+        }
+    }
     void SnapshotAppearance(cJSON* s) {
         std::lock_guard lock(controls_);
         cJSON_AddBoolToObject(s, "white", white_);
@@ -177,10 +184,7 @@ public:
             return "Could not save display mode";
         SetBackground(cJSON_IsTrue(white));
         SetSubtitles(cJSON_IsTrue(text));
-        if (GetAudioCodec()->output_volume() != volume->valueint) {
-            GetAudioCodec()->SetOutputVolume(volume->valueint);
-            display_.Volume(volume->valueint);
-        }
+        SetSpeakerVolume(volume->valueint);
         return nullptr;
     }
     void ReturnToStation() {
@@ -319,6 +323,9 @@ private:
 DECLARE_BOARD(AnimeCompanion);
 
 namespace aura {
+void SetSpeakerVolume(int volume) {
+    static_cast<AnimeCompanion&>(Board::GetInstance()).SetSpeakerVolume(volume);
+}
 void AddAppearance(cJSON* s) {
     static_cast<AnimeCompanion&>(Board::GetInstance()).SnapshotAppearance(s);
 }

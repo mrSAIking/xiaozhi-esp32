@@ -8,6 +8,9 @@
 #include <iterator>
 
 #include "application.h"
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+#include "appearance.h"
+#endif
 #include "board.h"
 #include "display.h"
 #include "lvgl_image.h"
@@ -174,8 +177,12 @@ void McpServer::AddCommonTools() {
             "`self.get_device_status` tool first and then call this tool.",
             PropertyList({Property("volume", kPropertyTypeInteger, 0, 100)}),
             [&board](const PropertyList& properties) -> ReturnValue {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+                aura::SetSpeakerVolume(properties["volume"].value<int>());
+#else
                 auto codec = board.GetAudioCodec();
                 codec->SetOutputVolume(properties["volume"].value<int>());
+#endif
                 return true;
             });
 
