@@ -16,6 +16,8 @@ public:
     void SetConversationText(const char* role, const char* content) override;
     void CancelConversationText() override;
     void ConnectingWifi();
+    void ShowProvisioning();
+    void SetStatus(const char* status) override;
     void AfterRefresh(void (*callback)());
     void PreviewMode() { preview_requested_.store(true); }
 
@@ -32,7 +34,8 @@ private:
     void RefreshComplete();
     void (*after_refresh_)() = nullptr;  // Protected by the LVGL port lock.
     Ili9488 panel_driver_;
-    lv_obj_t *boot_screen_=nullptr,*boot_status_=nullptr,*boot_fill_=nullptr;
+    lv_obj_t *boot_screen_ = nullptr, *boot_status_ = nullptr, *boot_fill_ = nullptr;
+    bool recovery_ = false, activation_prompt_ = false;
     lv_image_dsc_t boot_image_{};
     lv_obj_t* setup_screen_ = nullptr;
     lv_obj_t* avatar_screen_ = nullptr;

@@ -3,6 +3,7 @@
 #include <string>
 namespace aura {
 void Init();
+bool IsOnline();
 void Network(bool connected);
 void StartControl();
 void Online(bool connected);

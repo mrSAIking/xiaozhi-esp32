@@ -7,6 +7,8 @@
 #include <cstring>
 
 #include "application.h"
+#include "assets/lang_config.h"
+#include "aura_service.h"
 #include "companion_index.h"
 #include "lvgl_font.h"
 
@@ -76,6 +78,17 @@ AvatarDisplay::AvatarDisplay() : LcdDisplay(nullptr, nullptr, kWidth, kHeight) {
     ESP_LOGI("Avatar", "LVGL display registered, PSRAM strip=%zu bytes, refresh paused", bytes);
 }
 
+void AvatarDisplay::SetStatus(const char* status) {
+    DisplayLockGuard lock(this);
+    recovery_ = status && std::strcmp(status, Lang::Strings::ERROR) == 0;
+    activation_prompt_ = status && std::strcmp(status, Lang::Strings::ACTIVATION) == 0;
+    LcdDisplay::SetStatus(status);
+}
+void AvatarDisplay::ShowProvisioning() {
+    DisplayLockGuard lock(this);
+    if (setup_screen_ && lv_screen_active() != setup_screen_)
+        lv_screen_load(setup_screen_);
+}
 void AvatarDisplay::ConnectingWifi() {
     DisplayLockGuard guard(this);
     if (boot_status_)
@@ -315,10 +328,14 @@ void AvatarDisplay::Tick() {
         preview_until_ = ms + kPreviewMs;
     if (!can_preview)
         preview_until_ = 0;
-    if (!show && ms >= preview_until_) {
-        if (state == kDeviceStateStarting && boot_screen_) {
+    if ((!show || recovery_) && ms >= preview_until_) {
+        if ((state == kDeviceStateStarting || state == kDeviceStateActivating) && !recovery_ &&
+            !activation_prompt_ && boot_screen_) {
             if (lv_screen_active() != boot_screen_)
                 lv_screen_load(boot_screen_);
+            if (aura::IsOnline() &&
+                std::strcmp(lv_label_get_text(boot_status_), "Connecting to AI") != 0)
+                lv_label_set_text(boot_status_, "Connecting to AI");
             int phase = (ms / 12) % 144;
             lv_obj_set_pos(boot_fill_, 112 + (phase <= 72 ? phase : 144 - phase), 43);
             return;

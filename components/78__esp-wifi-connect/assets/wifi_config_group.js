@@ -230,7 +230,7 @@ const portalAdvanced = (() => {
                 try {
                     const response = await fetch('/advanced/submit', {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: {'Content-Type': 'application/json', 'X-Aura-Request':'1'},
                         body: JSON.stringify({id: group.id, values})
                     });
                     const data = await response.json();

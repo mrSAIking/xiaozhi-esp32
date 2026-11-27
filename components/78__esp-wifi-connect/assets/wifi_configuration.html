@@ -1835,7 +1835,7 @@ html.aura{--accent:#9333ea;--accent-hover:#7c3aed;--accent-soft:#2a1d3e;--surfac
          */
         function deleteItem(item, index) {
             item.disabled = true;
-            fetch('/saved/delete?index=' + index)
+            fetch('/saved/delete?index=' + index, location.pathname === '/network' ? {method:'POST',headers:{'X-Aura-Request':'1'}} : {})
                 .then(response => response.json())
                 .then(data => {
                     loadSavedList();
@@ -1847,7 +1847,7 @@ html.aura{--accent:#9333ea;--accent-hover:#7c3aed;--accent-soft:#2a1d3e;--surfac
          */
         function setDefaultItem(item, index) {
             item.disabled = true;
-            fetch('/saved/set_default?index=' + index)
+            fetch('/saved/set_default?index=' + index, location.pathname === '/network' ? {method:'POST',headers:{'X-Aura-Request':'1'}} : {})
                 .then(response => response.json())
                 .then(data => {
                     loadSavedList();
@@ -1968,7 +1968,7 @@ html.aura{--accent:#9333ea;--accent-hover:#7c3aed;--accent-soft:#2a1d3e;--surfac
                 const response = await fetch('/submit', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json', 'X-Aura-Request':'1'
                     },
                     body: JSON.stringify(payload)
                 });

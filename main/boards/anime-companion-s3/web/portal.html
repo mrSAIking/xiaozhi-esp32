@@ -1,60 +1,819 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#09090b"><title>Project Aura · Device settings</title>
-<style>
-:root{color-scheme:dark;--bg:#09090b;--card:#15151c;--line:#292933;--muted:#a1a1aa;--ink:#fff;--violet:#9333ea;--soft:#c6a3ff;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink)}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,iframe:focus-visible{outline:2px solid #c6a3ff;outline-offset:3px}button:disabled{opacity:.5;cursor:wait}[hidden]{display:none!important}.layout{max-width:1540px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr);min-height:100vh}aside{padding:38px 20px;background:#101014;border-right:1px solid var(--line)}.brand{display:block;width:166px;mix-blend-mode:screen;margin:0 auto 50px}.nav{display:grid;gap:6px}.nav button{padding:13px 16px;text-align:left;color:var(--muted);background:transparent;border:1px solid transparent;border-radius:10px}.nav button.active{background:#2b193d;border-color:#482864;color:#f7edff}.nav button:hover{color:white}.nav b{font-size:16px;display:inline-block;width:25px;color:#b691e2}.pane{padding:32px clamp(20px,5vw,84px) 64px;min-width:0}.top{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:21px;color:var(--muted);font-size:13px}.status{display:inline-flex;gap:8px;align-items:center}.status:before{content:"";background:#a1a1aa;width:7px;height:7px;border-radius:50%}.status.online:before{background:#22ff66}h1{font-size:clamp(32px,4vw,49px);letter-spacing:-.055em;line-height:1.1;margin:34px 0 24px}h2{font-size:21px;letter-spacing:-.035em;margin:0 0 12px}p{color:var(--muted);margin:8px 0}.hero{min-height:208px;display:grid;grid-template-columns:1fr 1fr;align-items:center;border:1px solid #42304e;border-radius:18px;padding:32px;overflow:hidden;background:radial-gradient(ellipse at 90% 30%,#391447 0%,transparent 62%),linear-gradient(125deg,#16141d,#201326)}.hero h2{font-size:34px;margin:0}.hero img{width:100%;mix-blend-mode:screen}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:16px 0}.box{padding:24px;background:var(--card);border:1px solid var(--line);border-radius:15px;min-width:0}.box+.box{margin-top:16px}.grid .box+.box{margin:0}.big{font-size:26px;letter-spacing:-.04em;color:#fff;margin:.5em 0}.link{background:none;color:var(--soft);border:0;padding:4px 0}.btn{border:1px solid #42394c;border-radius:9px;padding:9px 16px;background:#221e29;color:white}.primary{border-color:transparent;background:linear-gradient(115deg,#7c3aed,#9333ea)}label{display:block;color:#ddd8e4;margin:12px 0 4px}input:not([type=checkbox]),select{min-width:0;width:100%;background:#101014;color:white;border:1px solid #37333f;padding:10px 12px;border-radius:8px}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row input:not([type=checkbox]){flex:1;min-width:100px}.actions{margin-top:20px}.sub{font-size:13px;color:var(--muted)}.feedback{min-height:24px;color:#22ff66}.feedback.error{color:#ff8585}dl{margin:12px 0 0}dl div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line)}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}iframe{width:100%;border:0;min-height:560px;background:var(--card);border-radius:12px}.busy{animation:pulse .8s infinite alternate}@keyframes pulse{to{opacity:.45}}@media(prefers-reduced-motion:reduce){.busy{animation:none}}@media(max-width:760px){.layout{display:block}aside{padding:14px 16px 9px;border:0;border-bottom:1px solid var(--line)}.brand{width:104px;margin:0 0 12px}.nav{display:flex;overflow:auto;gap:2px}.nav button{white-space:nowrap;padding:7px 9px;font-size:13px}.nav b{display:none}.pane{padding:16px}.top{padding-bottom:11px}.grid{grid-template-columns:1fr}.hero{padding:20px;min-height:145px;gap:6px}.hero h2{font-size:25px}.box{padding:18px}h1{margin:20px 0}.btn{padding:9px 12px}}
-</style></head><body><div class="layout"><aside><img class="brand" src="/aura-logo.webp" alt="Project Aura"><nav class="nav" aria-label="Device settings">
-<button data-page="overview"><b>◉</b> Overview</button><button data-page="wifi"><b>◌</b> Wi-Fi</button><button data-page="weather"><b>☀</b> Weather</button><button data-page="time"><b>◷</b> Date &amp; Time</button><button data-page="advanced"><b>⚙</b> Advanced Settings</button></nav></aside>
-<main class="pane"><div class="top"><span>Project Aura &nbsp;/&nbsp; Device settings</span><span id="connection" class="status">Connecting</span></div><h1 id="heading">Overview</h1>
-<p id="feedback" class="feedback" role="status" aria-live="polite"></p>
-<section id="login" hidden class="box"><h2>Unlock your device</h2><label for="access">Home access code</label><input id="access" type="password" autocomplete="current-password"><p class="sub">Create an access code in Advanced Settings while connected to the setup hotspot.</p><button class="btn primary actions" id="unlock">Unlock</button></section>
-<section id="done" hidden class="box"><h2>Wi-Fi credentials saved</h2><p>Your device connected to the selected network. Finish setup to return to your companion.</p><button id="finish" class="btn primary actions">Finish setup</button></section>
-<section id="overview" hidden><div class="hero"><div><h2>Project Aura</h2><p id="deviceMode">Device control</p></div><img src="/aura-logo.webp" alt=""></div><div class="grid"><article class="box"><h2>Local time</h2><div class="big" id="clockCard">Awaiting sync</div><p id="zoneCard"></p><button data-go="time" class="link">Clock settings →</button></article><article class="box"><h2>Weather</h2><div class="big" id="weatherCard">Not configured</div><p id="weatherCity"></p><button data-go="weather" class="link">Weather settings →</button></article></div><article class="box"><h2>Device information</h2><dl><div><dt>Network address</dt><dd id="ip">—</dd></div><div><dt>Firmware version</dt><dd id="ver">—</dd></div><div><dt>Board</dt><dd>Anime Companion S3</dd></div></dl></article></section>
-<section id="wifi" hidden><div id="wifiHome" class="box" hidden><h2>Home Wi-Fi</h2><p>Open the setup hotspot to scan or change saved networks.</p></div></section>
-<section id="weather" hidden class="box"><h2>Current weather</h2><label><input type="checkbox" id="enabled"> Enable OpenWeather</label><label for="key">API key</label><div class="row"><input type="password" id="key" autocomplete="new-password"><button class="btn" id="reveal">Show</button><button class="btn" id="clear">Clear key</button></div>
-<div class="grid"><div><label for="city">Home city</label><input id="city" maxlength="80" autocomplete="off"></div><div><label for="country">Country code</label><input id="country" placeholder="IN" maxlength="2"></div></div>
-<button id="search" class="btn">Find cities</button><label for="cities">City results</label><select id="cities"><option>Select a location</option></select><label for="units">Temperature units</label><select id="units"><option value="metric">Celsius</option><option value="imperial">Fahrenheit</option></select>
-<div class="row actions"><button id="saveWeather" class="btn primary">Save settings</button><button id="test" class="btn">Test connection</button></div><dl><div><dt>Service status</dt><dd id="service"></dd></div><div><dt>Last successful update</dt><dd id="lastWeather"></dd></div></dl></section>
-<section id="time" hidden class="box"><h2>Device clock</h2><div class="big" id="clockNow">Awaiting sync</div><p id="dateNow"></p><label><input type="checkbox" id="automatic"> Automatic internet synchronization</label><label for="zone">Time zone</label><input id="zone" list="zoneList"><datalist id="zoneList"></datalist><label for="format">Time format</label><select id="format"><option value="12">12-hour</option><option value="24">24-hour</option></select><div class="row actions"><button id="saveTime" class="btn primary">Save settings</button><button id="sync" class="btn">Sync now</button></div><dl><div><dt>UTC offset</dt><dd id="offset"></dd></div><div><dt>Last synchronization</dt><dd id="lastSync"></dd></div></dl></section>
-<section id="advanced" hidden><article class="box" id="pairBox"><h2>Home network access</h2><p>Create a private access code for project-aura.local. Save a copy before leaving setup.</p><div class="row actions"><input id="pairCode" readonly aria-label="New access code"><button class="btn" id="generate">Generate</button><button class="btn primary" id="pair">Save code</button></div></article><p id="advancedHome" hidden>Open the setup hotspot to manage OTA, sleep, Tavily and access codes.</p></section>
-<iframe id="legacy" title="Network configuration" hidden></iframe></main></div>
-<script>
-'use strict';
-const $=s=>document.getElementById(s), pages=['overview','wifi','weather','time','advanced','login','done'];
-let state=null, token='',clearKey=false,selection=null,lastCities='',section='overview',inFlight=false;
-function message(text,error=false){$('feedback').textContent=text;$('feedback').className='feedback'+(error?' error':'')}
-function page(id){section=id;for(const p of pages)$(p).hidden=p!==id;
- document.querySelectorAll('[data-page]').forEach(b=>{b.classList.toggle('active',b.dataset.page===id);b.disabled=!state});
- const btn=document.querySelector('[data-page="'+id+'"]');$('heading').textContent=btn?btn.textContent.slice(1).trim():id==='done'?'Connection complete':'Home network';
- const showLegacy=state&&!state.home&&(id==='wifi'||id==='advanced');$('legacy').hidden=!showLegacy;
- if(showLegacy){const src='/network?panel='+id;if($('legacy').getAttribute('src')!==src)$('legacy').src=src;}
- else $('legacy').removeAttribute('src');}
-function stamp(t){if(!t)return 'Awaiting sync';return new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short',timeZone:state.zone}).format(new Date(t*1000))}
-async function api(payload){const h={'X-Aura-Request':'1'};if(token)h.Authorization='Bearer '+token;
- if(payload)h['Content-Type']='application/json';const r=await fetch('/api/aura',{method:payload?'POST':'GET',headers:h,cache:'no-store',body:payload?JSON.stringify(payload):undefined});
- if(r.status===401){state=null;page('login');throw Error('Enter your device access code.')}if(!r.ok)throw Error((await r.text()).slice(0,160)||'Request failed');return r.json();}
-function render(s,fill){state=s;const c=s.clock;const clock=c.synchronized?c.time:'Awaiting sync';
- $('connection').textContent=s.home?'Home network':'Setup hotspot';$('connection').classList.add('online');$('deviceMode').textContent=s.home?'Home network control':'Wi-Fi provisioning';$('ip').textContent=s.ip||'—';$('ver').textContent=s.firmware;
- $('clockCard').textContent=$('clockNow').textContent=clock;$('dateNow').textContent=c.synchronized?c.weekday+' · '+c.date:'Waiting for internet time';$('zoneCard').textContent=s.zone;$('offset').textContent=c.offset||'Pending sync';$('lastSync').textContent=stamp(c.last_sync);
- $('weatherCard').textContent=s.weather?Math.round(s.weather.temp)+'°'+s.weather.temperature_unit:s.enabled?'Awaiting weather':'Disabled';$('weatherCity').textContent=s.weather?s.weather.location+' · '+s.weather.description:s.city||'No home city';$('service').textContent=s.weather_status;$('lastWeather').textContent=stamp(s.last_update);
- $('wifiHome').hidden=!s.home;$('advancedHome').hidden=!s.home;$('pairBox').hidden=s.home;
- if(fill){$('enabled').checked=s.enabled;$('city').value=s.city;$('country').value=s.country;$('units').value=s.units;$('key').placeholder=s.key_saved?'•••••••• (saved)':'OpenWeather API key';$('key').value='';clearKey=false;
- selection=s.lat===undefined?null:{lat:s.lat,lon:s.lon};$('automatic').checked=s.automatic;$('zone').value=s.zone;$('format').value=s.h24?'24':'12';$('zoneList').replaceChildren(...s.zones.map(z=>new Option(z,z)));}
- const list=JSON.stringify(s.cities);if(list!==lastCities){lastCities=list;$('cities').replaceChildren(new Option('Select a location',''),...s.cities.map((c,i)=>new Option([c.name,c.state,c.country].filter(Boolean).join(', '),i)));}
-}
-async function refresh(fill=false){if(inFlight)return;inFlight=true;try{const old=state;render(await api(),fill||!old);if(!old){message('');page('overview')}}catch(e){message(e.message,true)}finally{inFlight=false}}
-async function act(btn,payload,fill=false){btn.disabled=true;btn.classList.add('busy');try{render(await api(payload),fill);message(['test','search','sync'].includes(payload.action)?'Request submitted. Check service status for the result.':'Settings saved.');}catch(e){message(e.message,true)}finally{btn.disabled=false;btn.classList.remove('busy')}}
-function weather(action){return {action,enabled:$('enabled').checked,key:$('key').value.trim(),clear_key:clearKey,city:$('city').value.trim(),country:$('country').value.toUpperCase().trim(),units:$('units').value,...selection}}
-document.querySelectorAll('[data-page],[data-go]').forEach(b=>b.onclick=()=>{message('');page(b.dataset.page||b.dataset.go)});
-$('unlock').onclick=()=>{token=$('access').value.trim();$('access').value='';refresh(true)};
-$('reveal').onclick=()=>{const show=$('key').type==='password';$('key').type=show?'text':'password';$('reveal').textContent=show?'Hide':'Show'};
-$('clear').onclick=()=>{clearKey=true;$('key').value='';$('key').placeholder='Cleared on save'};$('key').oninput=()=>clearKey=false;
-$('city').oninput=$('country').oninput=()=>{selection=null;$('cities').value=''};
-$('cities').onchange=()=>{if($('cities').value==='')return;const c=state.cities[+$('cities').value];selection={lat:c.lat,lon:c.lon};$('city').value=c.name;$('country').value=c.country;};
-for(const [id,a] of [['search','search'],['test','test'],['saveWeather','weather']])$(id).onclick=()=>act($(id),weather(a),a==='weather');
-$('saveTime').onclick=()=>act($('saveTime'),{action:'time',zone:$('zone').value,automatic:$('automatic').checked,h24:$('format').value==='24'},true);
-$('sync').onclick=()=>act($('sync'),{action:'sync'});
-$('generate').onclick=()=>{$('pairCode').value=Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('')};
-$('pair').onclick=()=>act($('pair'),{action:'pair',token:$('pairCode').value});
-$('finish').onclick=async()=>{try{const r=await fetch('/exit',{method:'POST'});if(!r.ok)throw Error();message('Setup complete. Rejoin your home network.')}catch{message('Reconnect to your device to check setup.')}};
-if(location.pathname==='/done.html'){page('done');$('connection').textContent='Wi-Fi configured'}else{page('overview');refresh(true);setInterval(()=>{if(state&&!document.hidden)refresh()},3000)}
-</script></body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#09090b" />
+    <title>Project Aura · Device settings</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #09090b;
+        --card: #15151c;
+        --line: #292933;
+        --muted: #a1a1aa;
+        --ink: #fff;
+        --violet: #9333ea;
+        --soft: #c6a3ff;
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      iframe:focus-visible {
+        outline: 2px solid #c6a3ff;
+        outline-offset: 3px;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .layout {
+        max-width: 1540px;
+        margin: auto;
+        display: grid;
+        grid-template-columns: 230px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+      aside {
+        padding: 38px 20px;
+        background: #101014;
+        border-right: 1px solid var(--line);
+      }
+      .brand {
+        display: block;
+        width: 166px;
+        mix-blend-mode: screen;
+        margin: 0 auto 50px;
+      }
+      .nav {
+        display: grid;
+        gap: 6px;
+      }
+      .nav button {
+        padding: 13px 16px;
+        text-align: left;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 10px;
+      }
+      .nav button.active {
+        background: #2b193d;
+        border-color: #482864;
+        color: #f7edff;
+      }
+      .nav button:hover {
+        color: white;
+      }
+      .nav b {
+        font-size: 16px;
+        display: inline-block;
+        width: 25px;
+        color: #b691e2;
+      }
+      .pane {
+        padding: 32px clamp(20px, 5vw, 84px) 64px;
+        min-width: 0;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 21px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .status {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .status:before {
+        content: "";
+        background: #a1a1aa;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+      }
+      .status.online:before {
+        background: #22ff66;
+      }
+      h1 {
+        font-size: clamp(32px, 4vw, 49px);
+        letter-spacing: -0.055em;
+        line-height: 1.1;
+        margin: 34px 0 24px;
+      }
+      h2 {
+        font-size: 21px;
+        letter-spacing: -0.035em;
+        margin: 0 0 12px;
+      }
+      p {
+        color: var(--muted);
+        margin: 8px 0;
+      }
+      .hero {
+        min-height: 208px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: center;
+        border: 1px solid #42304e;
+        border-radius: 18px;
+        padding: 32px;
+        overflow: hidden;
+        background:
+          radial-gradient(ellipse at 90% 30%, #391447 0%, transparent 62%),
+          linear-gradient(125deg, #16141d, #201326);
+      }
+      .hero h2 {
+        font-size: 34px;
+        margin: 0;
+      }
+      .hero img {
+        width: 100%;
+        mix-blend-mode: screen;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        margin: 16px 0;
+      }
+      .box {
+        padding: 24px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 15px;
+        min-width: 0;
+      }
+      .box + .box {
+        margin-top: 16px;
+      }
+      .grid .box + .box {
+        margin: 0;
+      }
+      .big {
+        font-size: 26px;
+        letter-spacing: -0.04em;
+        color: #fff;
+        margin: 0.5em 0;
+      }
+      .link {
+        background: none;
+        color: var(--soft);
+        border: 0;
+        padding: 4px 0;
+      }
+      .btn {
+        border: 1px solid #42394c;
+        border-radius: 9px;
+        padding: 9px 16px;
+        background: #221e29;
+        color: white;
+      }
+      .primary {
+        border-color: transparent;
+        background: linear-gradient(115deg, #7c3aed, #9333ea);
+      }
+      label {
+        display: block;
+        color: #ddd8e4;
+        margin: 12px 0 4px;
+      }
+      input:not([type="checkbox"]),
+      select {
+        min-width: 0;
+        width: 100%;
+        background: #101014;
+        color: white;
+        border: 1px solid #37333f;
+        padding: 10px 12px;
+        border-radius: 8px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .row input:not([type="checkbox"]) {
+        flex: 1;
+        min-width: 100px;
+      }
+      .actions {
+        margin-top: 20px;
+      }
+      .sub {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .feedback {
+        min-height: 24px;
+        color: #22ff66;
+      }
+      .feedback.error {
+        color: #ff8585;
+      }
+      dl {
+        margin: 12px 0 0;
+      }
+      dl div {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 0;
+        border-top: 1px solid var(--line);
+      }
+      dt {
+        color: var(--muted);
+      }
+      dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      iframe {
+        width: 100%;
+        border: 0;
+        min-height: 560px;
+        background: var(--card);
+        border-radius: 12px;
+      }
+      .busy {
+        animation: pulse 0.8s infinite alternate;
+      }
+      @keyframes pulse {
+        to {
+          opacity: 0.45;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .busy {
+          animation: none;
+        }
+      }
+      @media (max-width: 760px) {
+        .layout {
+          display: block;
+        }
+        aside {
+          padding: 14px 16px 9px;
+          border: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .brand {
+          width: 104px;
+          margin: 0 0 12px;
+        }
+        .nav {
+          display: flex;
+          overflow: auto;
+          gap: 2px;
+        }
+        .nav button {
+          white-space: nowrap;
+          padding: 7px 9px;
+          font-size: 13px;
+        }
+        .nav b {
+          display: none;
+        }
+        .pane {
+          padding: 16px;
+        }
+        .top {
+          padding-bottom: 11px;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .hero {
+          padding: 20px;
+          min-height: 145px;
+          gap: 6px;
+        }
+        .hero h2 {
+          font-size: 25px;
+        }
+        .box {
+          padding: 18px;
+        }
+        h1 {
+          margin: 20px 0;
+        }
+        .btn {
+          padding: 9px 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside>
+        <img class="brand" src="/aura-logo.webp" alt="Project Aura" />
+        <nav class="nav" aria-label="Device settings">
+          <button data-page="overview"><b>◉</b> Overview</button
+          ><button data-page="wifi"><b>◌</b> Wi-Fi</button
+          ><button data-page="weather"><b>☀</b> Weather</button
+          ><button data-page="time"><b>◷</b> Date &amp; Time</button
+          ><button data-page="advanced"><b>⚙</b> Advanced Settings</button>
+        </nav>
+      </aside>
+      <main class="pane">
+        <div class="top">
+          <span>Project Aura &nbsp;/&nbsp; Device settings</span
+          ><span id="connection" class="status">Connecting</span>
+        </div>
+        <h1 id="heading">Overview</h1>
+        <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
+        <section id="login" hidden class="box">
+          <h2>Unlock your device</h2>
+          <label for="access">Home access code</label
+          ><input id="access" type="password" autocomplete="current-password" />
+          <p class="sub">
+            Create an access code in Advanced Settings while connected to the
+            setup hotspot.
+          </p>
+          <button class="btn primary actions" id="unlock">Unlock</button>
+        </section>
+        <section id="done" hidden class="box">
+          <h2>Wi-Fi credentials saved</h2>
+          <p>
+            Your device connected to the selected network. Finish setup to
+            return to your companion.
+          </p>
+          <button id="finish" class="btn primary actions">Finish setup</button>
+        </section>
+        <section id="overview" hidden>
+          <div class="hero">
+            <div>
+              <h2>Project Aura</h2>
+              <p id="deviceMode">Device control</p>
+            </div>
+            <img src="/aura-logo.webp" alt="" />
+          </div>
+          <div class="grid">
+            <article class="box">
+              <h2>Local time</h2>
+              <div class="big" id="clockCard">Awaiting sync</div>
+              <p id="zoneCard"></p>
+              <button data-go="time" class="link">Clock settings →</button>
+            </article>
+            <article class="box">
+              <h2>Weather</h2>
+              <div class="big" id="weatherCard">Not configured</div>
+              <p id="weatherCity"></p>
+              <button data-go="weather" class="link">Weather settings →</button>
+            </article>
+          </div>
+          <article class="box">
+            <h2>Device information</h2>
+            <dl>
+              <div>
+                <dt>Network address</dt>
+                <dd id="ip">—</dd>
+              </div>
+              <div>
+                <dt>Firmware version</dt>
+                <dd id="ver">—</dd>
+              </div>
+              <div>
+                <dt>Board</dt>
+                <dd>Anime Companion S3</dd>
+              </div>
+            </dl>
+          </article>
+        </section>
+        <section id="wifi" hidden>
+          <div id="wifiHome" class="box" hidden>
+            <h2>Home Wi-Fi</h2>
+            <p>Open the setup hotspot to scan or change saved networks.</p>
+          </div>
+        </section>
+        <section id="weather" hidden class="box">
+          <h2>Current weather</h2>
+          <label
+            ><input type="checkbox" id="enabled" /> Enable OpenWeather</label
+          ><label for="key">API key</label>
+          <div class="row">
+            <input
+              type="password"
+              id="key"
+              autocomplete="new-password"
+            /><button class="btn" id="reveal">Show</button
+            ><button class="btn" id="clear">Clear key</button>
+          </div>
+          <div class="grid">
+            <div>
+              <label for="city">Home city</label
+              ><input id="city" maxlength="80" autocomplete="off" />
+            </div>
+            <div>
+              <label for="country">Country code</label
+              ><input id="country" placeholder="IN" maxlength="2" />
+            </div>
+          </div>
+          <button id="search" class="btn">Find cities</button
+          ><label for="cities">City results</label
+          ><select id="cities">
+            <option>Select a location</option></select
+          ><label for="units">Temperature units</label
+          ><select id="units">
+            <option value="metric">Celsius</option>
+            <option value="imperial">Fahrenheit</option>
+          </select>
+          <div class="row actions">
+            <button id="saveWeather" class="btn primary">Save settings</button
+            ><button id="test" class="btn">Test connection</button>
+          </div>
+          <dl>
+            <div>
+              <dt>Service status</dt>
+              <dd id="service"></dd>
+            </div>
+            <div>
+              <dt>Last successful update</dt>
+              <dd id="lastWeather"></dd>
+            </div>
+          </dl>
+          <article id="observation" hidden>
+            <h2>Latest observation</h2>
+            <dl id="readings"></dl>
+          </article>
+        </section>
+        <section id="time" hidden class="box">
+          <h2>Device clock</h2>
+          <div class="big" id="clockNow">Awaiting sync</div>
+          <p id="dateNow"></p>
+          <label
+            ><input type="checkbox" id="automatic" /> Automatic internet
+            synchronization</label
+          ><label for="zone">Time zone</label
+          ><input id="zone" list="zoneList" /><datalist id="zoneList"></datalist
+          ><label for="format">Time format</label
+          ><select id="format">
+            <option value="12">12-hour</option>
+            <option value="24">24-hour</option>
+          </select>
+          <div class="row actions">
+            <button id="saveTime" class="btn primary">Save settings</button
+            ><button id="sync" class="btn">Sync now</button>
+          </div>
+          <dl>
+            <div>
+              <dt>UTC offset</dt>
+              <dd id="offset"></dd>
+            </div>
+            <div>
+              <dt>Last synchronization</dt>
+              <dd id="lastSync"></dd>
+            </div>
+          </dl>
+        </section>
+        <section id="advanced" hidden>
+          <article class="box" id="pairBox">
+            <h2>Home network access</h2>
+            <p>
+              Create a private access code for project-aura.local. Save a copy
+              before leaving setup.
+            </p>
+            <div class="row actions">
+              <input
+                id="pairCode"
+                readonly
+                aria-label="New access code"
+              /><button class="btn" id="generate">Generate</button
+              ><button class="btn primary" id="pair">Save code</button>
+            </div>
+          </article>
+          <p id="advancedHome" hidden>
+            Open the setup hotspot to manage OTA, sleep, Tavily and access
+            codes.
+          </p>
+        </section>
+        <iframe id="legacy" title="Network configuration" hidden></iframe>
+      </main>
+    </div>
+    <script>
+      "use strict";
+      const $ = (s) => document.getElementById(s),
+        pages = [
+          "overview",
+          "wifi",
+          "weather",
+          "time",
+          "advanced",
+          "login",
+          "done",
+        ];
+      let state = null,
+        token = "",
+        clearKey = false,
+        selection = null,
+        lastCities = "",
+        section = "overview",
+        inFlight = false;
+      function message(text, error = false) {
+        $("feedback").textContent = text;
+        $("feedback").className = "feedback" + (error ? " error" : "");
+      }
+      function page(id) {
+        section = id;
+        for (const p of pages) $(p).hidden = p !== id;
+        document.querySelectorAll("[data-page]").forEach((b) => {
+          b.classList.toggle("active", b.dataset.page === id);
+          b.disabled = !state;
+        });
+        const btn = document.querySelector('[data-page="' + id + '"]');
+        $("heading").textContent = btn
+          ? btn.textContent.slice(1).trim()
+          : id === "done"
+            ? "Connection complete"
+            : "Home network";
+        const showLegacy =
+          state && !state.home && (id === "wifi" || id === "advanced");
+        $("legacy").hidden = !showLegacy;
+        if (showLegacy) {
+          const src = "/network?panel=" + id;
+          if ($("legacy").getAttribute("src") !== src) $("legacy").src = src;
+        } else $("legacy").removeAttribute("src");
+      }
+      function stamp(t) {
+        if (!t) return "Awaiting sync";
+        return new Intl.DateTimeFormat(undefined, {
+          dateStyle: "medium",
+          timeStyle: "short",
+          timeZone: state.zone,
+        }).format(new Date(t * 1000));
+      }
+      async function api(payload) {
+        const h = { "X-Aura-Request": "1" };
+        if (token) h.Authorization = "Bearer " + token;
+        if (payload) h["Content-Type"] = "application/json";
+        const r = await fetch("/api/aura", {
+          method: payload ? "POST" : "GET",
+          headers: h,
+          cache: "no-store",
+          body: payload ? JSON.stringify(payload) : undefined,
+        });
+        if (r.status === 401) {
+          state = null;
+          page("login");
+          throw Error("Enter your device access code.");
+        }
+        if (!r.ok)
+          throw Error((await r.text()).slice(0, 160) || "Request failed");
+        return r.json();
+      }
+      function render(s, fill) {
+        state = s;
+        const c = s.clock;
+        const clock = c.synchronized ? c.time : "Awaiting sync";
+        $("connection").textContent = s.home ? "Home network" : "Setup hotspot";
+        $("connection").classList.add("online");
+        $("deviceMode").textContent = s.home
+          ? "Home network control"
+          : "Wi-Fi provisioning";
+        $("ip").textContent = s.ip || "—";
+        $("ver").textContent = s.firmware;
+        $("clockCard").textContent = $("clockNow").textContent = clock;
+        $("dateNow").textContent = c.synchronized
+          ? c.weekday + " · " + c.date
+          : "Waiting for internet time";
+        $("zoneCard").textContent = s.zone;
+        $("offset").textContent = c.offset || "Pending sync";
+        $("lastSync").textContent = stamp(c.last_sync);
+        $("weatherCard").textContent = s.weather
+          ? Math.round(s.weather.temp) + "°" + s.weather.temperature_unit
+          : s.enabled
+            ? "Awaiting weather"
+            : "Disabled";
+        $("weatherCity").textContent = s.weather
+          ? s.weather.location + " · " + s.weather.description
+          : s.city || "No home city";
+        $("service").textContent = s.weather_status;
+        $("lastWeather").textContent = s.last_update
+          ? stamp(s.last_update)
+          : "No timestamp yet";
+        $("observation").hidden = !s.weather;
+        if (s.weather) {
+          const w = s.weather,
+            unit = "°" + w.temperature_unit;
+          const rows = [
+            ["Location", w.location],
+            ["Conditions", w.description],
+            ["Temperature", w.temp + unit],
+            ["Feels like", w.feels_like + unit],
+            [
+              "Current minimum / maximum",
+              w.temp_min + unit + " / " + w.temp_max + unit,
+            ],
+            ["Humidity", w.humidity + "%"],
+            ["Wind", w.wind_speed + " " + w.wind_unit],
+            ["Sunrise", stamp(w.sunrise)],
+            ["Sunset", stamp(w.sunset)],
+            ["Observed", stamp(w.observed_at)],
+          ];
+          $("readings").replaceChildren(
+            ...rows.map(([name, value]) => {
+              const row = document.createElement("div"),
+                dt = document.createElement("dt"),
+                dd = document.createElement("dd");
+              dt.textContent = name;
+              dd.textContent = value;
+              row.append(dt, dd);
+              return row;
+            }),
+          );
+        }
+        $("wifiHome").hidden = !s.home;
+        $("advancedHome").hidden = !s.home;
+        $("pairBox").hidden = s.home;
+        if (fill) {
+          $("enabled").checked = s.enabled;
+          $("city").value = s.city;
+          $("country").value = s.country;
+          $("units").value = s.units;
+          $("key").placeholder = s.key_saved
+            ? "•••••••• (saved)"
+            : "OpenWeather API key";
+          $("key").value = "";
+          clearKey = false;
+          selection = s.lat === undefined ? null : { lat: s.lat, lon: s.lon };
+          $("automatic").checked = s.automatic;
+          $("zone").value = s.zone;
+          $("format").value = s.h24 ? "24" : "12";
+          $("zoneList").replaceChildren(
+            ...s.zones.map((z) => new Option(z, z)),
+          );
+        }
+        const list = JSON.stringify(s.cities);
+        if (list !== lastCities) {
+          lastCities = list;
+          $("cities").replaceChildren(
+            new Option("Select a location", ""),
+            ...s.cities.map(
+              (c, i) =>
+                new Option(
+                  [c.name, c.state, c.country].filter(Boolean).join(", "),
+                  i,
+                ),
+            ),
+          );
+        }
+      }
+      async function refresh(fill = false) {
+        if (inFlight) return;
+        inFlight = true;
+        try {
+          const old = state;
+          render(await api(), fill || !old);
+          if (!old) {
+            message("");
+            page("overview");
+          }
+        } catch (e) {
+          message(e.message, true);
+        } finally {
+          inFlight = false;
+        }
+      }
+      async function act(btn, payload, fill = false) {
+        btn.disabled = true;
+        btn.classList.add("busy");
+        try {
+          render(await api(payload), fill);
+          message(
+            ["test", "search", "sync"].includes(payload.action)
+              ? "Request submitted. Check service status for the result."
+              : "Settings saved.",
+          );
+        } catch (e) {
+          message(e.message, true);
+        } finally {
+          btn.disabled = false;
+          btn.classList.remove("busy");
+        }
+      }
+      function weather(action) {
+        return {
+          action,
+          enabled: $("enabled").checked,
+          key: $("key").value.trim(),
+          clear_key: clearKey,
+          city: $("city").value.trim(),
+          country: $("country").value.toUpperCase().trim(),
+          units: $("units").value,
+          ...selection,
+        };
+      }
+      document.querySelectorAll("[data-page],[data-go]").forEach(
+        (b) =>
+          (b.onclick = () => {
+            message("");
+            page(b.dataset.page || b.dataset.go);
+          }),
+      );
+      $("unlock").onclick = () => {
+        token = $("access").value.trim();
+        $("access").value = "";
+        refresh(true);
+      };
+      $("reveal").onclick = () => {
+        const show = $("key").type === "password";
+        $("key").type = show ? "text" : "password";
+        $("reveal").textContent = show ? "Hide" : "Show";
+      };
+      $("clear").onclick = () => {
+        clearKey = true;
+        $("key").value = "";
+        $("key").placeholder = "Cleared on save";
+      };
+      $("key").oninput = () => (clearKey = false);
+      $("city").oninput = $("country").oninput = () => {
+        selection = null;
+        $("cities").value = "";
+      };
+      $("cities").onchange = () => {
+        if ($("cities").value === "") return;
+        const c = state.cities[+$("cities").value];
+        selection = { lat: c.lat, lon: c.lon };
+        $("city").value = c.name;
+        $("country").value = c.country;
+      };
+      for (const [id, a] of [
+        ["search", "search"],
+        ["test", "test"],
+        ["saveWeather", "weather"],
+      ])
+        $(id).onclick = () => act($(id), weather(a), a === "weather");
+      $("saveTime").onclick = () =>
+        act(
+          $("saveTime"),
+          {
+            action: "time",
+            zone: $("zone").value,
+            automatic: $("automatic").checked,
+            h24: $("format").value === "24",
+          },
+          true,
+        );
+      $("sync").onclick = () => act($("sync"), { action: "sync" });
+      $("generate").onclick = () => {
+        $("pairCode").value = Array.from(
+          crypto.getRandomValues(new Uint8Array(16)),
+          (n) => n.toString(16).padStart(2, "0"),
+        ).join("");
+      };
+      $("pair").onclick = () =>
+        act($("pair"), { action: "pair", token: $("pairCode").value });
+      $("finish").onclick = async () => {
+        try {
+          const r = await fetch("/exit", {
+            method: "POST",
+            headers: { "X-Aura-Request": "1" },
+          });
+          if (!r.ok) throw Error();
+          message("Setup complete. Rejoin your home network.");
+        } catch {
+          message("Reconnect to your device to check setup.");
+        }
+      };
+      if (location.pathname === "/done.html") {
+        page("done");
+        $("connection").textContent = "Wi-Fi configured";
+      } else {
+        page("overview");
+        refresh(true);
+        setInterval(() => {
+          if (state && !document.hidden) refresh();
+        }, 3000);
+      }
+    </script>
+  </body>
+</html>

@@ -69,8 +69,9 @@ struct Config {
 Config cfg;
 std::mutex mu, ntp_mu;
 std::atomic<bool> online{false};
-std::atomic<int64_t> synchronized_at{0};
+std::atomic<uint32_t> synchronized_at{0};
 bool ntp_running = false;
+std::atomic<bool> manual_complete{false};
 int64_t next_fetch = 0, last_update = 0;
 unsigned generation = 0;
 string cached, choices = "[]", status = "Weather is off";
@@ -179,7 +180,10 @@ void sync(bool start, bool force = false) {
         c.num_of_servers = 2;
         c.servers[1] = "time.google.com";
 #endif
-        c.sync_cb = [](struct timeval* tv) { synchronized_at.store(tv->tv_sec); };
+        c.sync_cb = [](struct timeval* tv) {
+            synchronized_at.store(tv->tv_sec);
+            manual_complete = true;
+        };
         ntp_running = esp_netif_sntp_init(&c) == ESP_OK;
     }
 }
@@ -228,6 +232,8 @@ Json fetch(const string& url, string& error) {
     esp_http_client_config_t c{};
     c.url = url.c_str();
     c.timeout_ms = 4500;
+    c.buffer_size = 1024;
+    c.buffer_size_tx = 512;
     c.crt_bundle_attach = esp_crt_bundle_attach;
     c.disable_auto_redirect = true;
     c.user_data = &body;
@@ -332,53 +338,67 @@ string lookup(Request r, string& results, string& weather) {
     weather = serialize(out.get());
     return "Updated";
 }
+void process_weather() {
+    Request r;
+    {
+        std::lock_guard lock(mu);
+        if (!online.load())
+            return;
+        if (pending.type != Job::None) {
+            r = std::move(pending);
+            pending = {};
+        } else if (cfg.enabled && !cfg.key.empty() && !cfg.city.empty() && now() >= next_fetch) {
+            r = {Job::Fetch, cfg, generation};
+        } else
+            return;
+        working = true;
+        status = r.type == Job::Search ? "Searching" : "Updating";
+    }
+    string results, weather;
+    auto msg = lookup(r, results, weather);
+    std::lock_guard lock(mu);
+    working = false;
+    if (r.version != generation)
+        return;
+    status = msg;
+    if (!results.empty())
+        choices = results;
+    if (r.type == Job::Fetch) {
+        next_fetch = now() + (weather.empty() ? 90 : 720);
+        if (!weather.empty()) {
+            cached = weather;
+            last_update = time(nullptr) > 1700000000 ? time(nullptr) : 0;
+        } else
+            cached.clear();
+    }
+}
 void task(void*) {
     for (;;) {
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(5000));
-        Request r;
+        process_weather();
+        bool stop;
         {
             std::lock_guard lock(mu);
-            if (!online.load())
-                continue;
-            if (pending.type != Job::None) {
-                r = std::move(pending);
-                pending = {};
-            } else if (cfg.enabled && !cfg.key.empty() && !cfg.city.empty() &&
-                       now() >= next_fetch) {
-                r = {Job::Fetch, cfg, generation};
-            } else
-                continue;
-            working = true;
-            status = r.type == Job::Search ? "Searching" : "Updating";
+            stop = !cfg.automatic && manual_complete.exchange(false);
         }
-        string results, weather;
-        auto msg = lookup(r, results, weather);
-        std::lock_guard lock(mu);
-        working = false;
-        if (r.version != generation)
-            continue;
-        status = msg;
-        if (!results.empty())
-            choices = results;
-        if (r.type == Job::Fetch) {
-            next_fetch = now() + (weather.empty() ? 90 : 720);
-            if (!weather.empty()) {
-                cached = weather;
-                last_update = time(nullptr) > 1700000000 ? time(nullptr) : 0;
-            } else
-                cached.clear();
-        }
+        if (stop)
+            sync(false);
     }
 }
 }  // namespace
 void Init() {
     load();
+    if (cfg.enabled)
+        status = cfg.key.empty()    ? "API key required"
+                 : cfg.city.empty() ? "City required"
+                                    : "Waiting for home Wi-Fi";
     setenv("TZ", rule(cfg.zone), 1);
     tzset();
     psa_crypto_init();
     if (xTaskCreate(task, "aura-weather", 8192, nullptr, 1, &worker) != pdPASS)
         worker = nullptr;
 }
+bool IsOnline() { return online.load(); }
 void Online(bool connected) {
     online = connected;
     bool automatic;
@@ -411,7 +431,13 @@ cJSON* Weather() {
     if (cfg.enabled && !cached.empty() && now() < next_fetch)
         return parse(cached).release();
     auto* j = cJSON_CreateObject();
-    add(j, "status", !cfg.enabled ? "Disabled" : !online ? "Offline" : status);
+    if (worker && cfg.enabled && online)
+        xTaskNotifyGive(worker);
+    add(j, "status",
+        !cfg.enabled          ? "Disabled"
+        : !online             ? "Offline"
+        : status == "Updated" ? "Awaiting fresh observation"
+                              : status);
     return j;
 }
 cJSON* Snapshot(bool home) {
@@ -463,9 +489,14 @@ const char* Command(const cJSON* j, bool home) {
         if (!online)
             return "Connect to home Wi-Fi to synchronize";
         lock.unlock();
+        manual_complete = false;
         sync(true, true);
         return nullptr;
     } else if (action == "weather" || action == "search" || action == "test") {
+        if (!cJSON_IsString(field(j, "city")) || !cJSON_IsString(field(j, "country")) ||
+            (field(j, "key") && !cJSON_IsString(field(j, "key"))) ||
+            (field(j, "clear_key") && !cJSON_IsBool(field(j, "clear_key"))))
+            return "Invalid weather settings";
         c.city = str(j, "city");
         c.country = str(j, "country");
         c.units = str(j, "units");

@@ -134,6 +134,7 @@ private:
         // must run on the application task after the display lock has been released.
         DisplayLockGuard guard(&display_);
         auto& app = Application::GetInstance();
+        display_.ShowProvisioning();
         app.Alert(Lang::Strings::WIFI_CONFIG_MODE, hint.c_str(), "gear");
         ESP_LOGI("AnimeBoard",
                  "Provisioning text queued; waiting for display refresh before audio");

@@ -193,6 +193,7 @@ void WifiConfigurationAp::StartAccessPoint()
 }
 
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+extern "C" bool aura_allow_portal_write(httpd_req_t*);
 extern "C" esp_err_t aura_ap_socket(httpd_handle_t,int);
 extern "C" void aura_register_ap(httpd_handle_t);
 #endif
@@ -237,17 +238,15 @@ void WifiConfigurationAp::StartWebServer()
         .method = HTTP_GET,
         .handler = [](httpd_req_t *req) -> esp_err_t {
             auto ssid_list = SsidManager::GetInstance().GetSsidList();
-            std::string json_str = "[";
-            for (const auto& ssid : ssid_list) {
-                json_str += "\"" + ssid.ssid + "\",";
-            }
-            if (json_str.length() > 1) {
-                json_str.pop_back(); // Remove the last comma
-            }
-            json_str += "]";
-            httpd_resp_set_type(req, "application/json");
-            httpd_resp_set_hdr(req, "Connection", "close");
-            httpd_resp_send(req, json_str.c_str(), HTTPD_RESP_USE_STRLEN);
+            auto* list = cJSON_CreateArray();
+            for (const auto& item : ssid_list) cJSON_AddItemToArray(list,cJSON_CreateString(item.ssid.c_str()));
+            char* encoded = cJSON_PrintUnformatted(list);
+            cJSON_Delete(list);
+            if (!encoded) return ESP_ERR_NO_MEM;
+            httpd_resp_set_type(req,"application/json");
+            httpd_resp_set_hdr(req,"Connection","close");
+            httpd_resp_sendstr(req,encoded);
+            cJSON_free(encoded);
             return ESP_OK;
         },
         .user_ctx = NULL
@@ -257,8 +256,16 @@ void WifiConfigurationAp::StartWebServer()
     // Register the /saved/set_default URI
     httpd_uri_t saved_set_default = {
         .uri = "/saved/set_default",
+        #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+        .method = HTTP_POST,
+#else
         .method = HTTP_GET,
+#endif
         .handler = [](httpd_req_t *req) -> esp_err_t {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+            if (!aura_allow_portal_write(req)) return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Invalid provisioning request");
+#endif
+
             std::string uri = req->uri;
             auto pos = uri.find("?index=");
             if (pos != std::string::npos) {
@@ -280,8 +287,16 @@ void WifiConfigurationAp::StartWebServer()
     // Register the /saved/delete URI
     httpd_uri_t saved_delete = {
         .uri = "/saved/delete",
+        #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+        .method = HTTP_POST,
+#else
         .method = HTTP_GET,
+#endif
         .handler = [](httpd_req_t *req) -> esp_err_t {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+            if (!aura_allow_portal_write(req)) return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Invalid provisioning request");
+#endif
+
             std::string uri = req->uri;
             auto pos = uri.find("?index=");
             if (pos != std::string::npos) {
@@ -323,10 +338,15 @@ void WifiConfigurationAp::StartWebServer()
             for (int i = 0; i < this_->ap_records_.size(); i++) {
                 ESP_LOGI(TAG, "SSID: %s, RSSI: %d, Authmode: %d",
                     (char *)this_->ap_records_[i].ssid, this_->ap_records_[i].rssi, this_->ap_records_[i].authmode);
-                char buf[128];
-                snprintf(buf, sizeof(buf), "{\"ssid\":\"%s\",\"rssi\":%d,\"authmode\":%d}",
-                    (char *)this_->ap_records_[i].ssid, this_->ap_records_[i].rssi, this_->ap_records_[i].authmode);
-                httpd_resp_sendstr_chunk(req, buf);
+                auto* item=cJSON_CreateObject();
+                cJSON_AddStringToObject(item,"ssid",reinterpret_cast<const char*>(this_->ap_records_[i].ssid));
+                cJSON_AddNumberToObject(item,"rssi",this_->ap_records_[i].rssi);
+                cJSON_AddNumberToObject(item,"authmode",this_->ap_records_[i].authmode);
+                char* encoded=cJSON_PrintUnformatted(item);
+                cJSON_Delete(item);
+                if(!encoded) return ESP_ERR_NO_MEM;
+                httpd_resp_sendstr_chunk(req,encoded);
+                cJSON_free(encoded);
                 if (i < this_->ap_records_.size() - 1) {
                     httpd_resp_sendstr_chunk(req, ",");
                 }
@@ -344,6 +364,10 @@ void WifiConfigurationAp::StartWebServer()
         .uri = "/submit",
         .method = HTTP_POST,
         .handler = [](httpd_req_t *req) -> esp_err_t {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+            if (!aura_allow_portal_write(req)) return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Invalid provisioning request");
+#endif
+
             char *buf;
             size_t buf_len = req->content_len;
             if (buf_len > 1024) { // 限制最大请求体大小
@@ -434,6 +458,10 @@ void WifiConfigurationAp::StartWebServer()
         .uri = "/exit",
         .method = HTTP_POST,
         .handler = [](httpd_req_t *req) -> esp_err_t {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+            if (!aura_allow_portal_write(req)) return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Invalid provisioning request");
+#endif
+
             auto* this_ = static_cast<WifiConfigurationAp*>(req->user_ctx);
             
             // 设置响应头，防止浏览器缓存
@@ -519,6 +547,10 @@ void WifiConfigurationAp::StartWebServer()
     const httpd_uri_t advanced_submit = {
         .uri = "/advanced/submit", .method = HTTP_POST,
         .handler = [](httpd_req_t* req) {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+            if (!aura_allow_portal_write(req)) return httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Invalid provisioning request");
+#endif
+
             return static_cast<WifiConfigurationAp*>(req->user_ctx)->SaveAdvancedConfig(req);
         },
         .user_ctx = this,

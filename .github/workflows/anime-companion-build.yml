@@ -66,6 +66,7 @@ jobs:
       - name: Verify merged image and report memory use
         run: |
           source "$IDF_PATH/export.sh"
+          python scripts/test_aura_service_host.py
           python -m unittest discover -s scripts/tests -p test_assets.py -v
           grep -Fx '# CONFIG_ANIME_PANEL_SELF_TEST is not set' sdkconfig
           grep -Fx CONFIG_ANIME_BREATH_PERIOD_MS=4800 sdkconfig

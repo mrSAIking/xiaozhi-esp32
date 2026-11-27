@@ -5,6 +5,7 @@
 #include "esp_http_server.h"
 #include "esp_netif.h"
 #include "esp_timer.h"
+#include "esp_wifi.h"
 #include "lwip/sockets.h"
 #include "mdns.h"
 
@@ -122,7 +123,9 @@ void Manage(void*) {
         bool on = desired.load();
         {
             std::lock_guard lock(server_mu);
-            if (on && desired.load() && !lan) {
+            wifi_mode_t mode = WIFI_MODE_NULL;
+            if (on && desired.load() && !lan && esp_wifi_get_mode(&mode) == ESP_OK &&
+                mode == WIFI_MODE_STA) {
                 httpd_config_t c = HTTPD_DEFAULT_CONFIG();
                 c.stack_size = 7168;
                 c.max_open_sockets = 3;
@@ -153,6 +156,10 @@ void Manage(void*) {
     }
 }
 }  // namespace
+extern "C" bool aura_allow_portal_write(httpd_req_t* r) {
+    const auto ip = Address(false), host = Header(r, "Host");
+    return !ip.empty() && (host == ip || host == ip + ":80") && Header(r, "X-Aura-Request") == "1";
+}
 extern "C" void aura_register_ap(httpd_handle_t s) { ESP_ERROR_CHECK(Routes(s, false)); }
 extern "C" esp_err_t aura_ap_socket(httpd_handle_t, int fd) {
     sockaddr_storage ss{};

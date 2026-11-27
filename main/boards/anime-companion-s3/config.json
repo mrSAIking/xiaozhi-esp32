@@ -7,7 +7,8 @@
             "sdkconfig_append": [
                 "CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y",
                 "CONFIG_ESP_COREDUMP_ENABLE_TO_UART=y",
-                "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"partitions/v2/16m_anime.csv\""
+                "CONFIG_PARTITION_TABLE_CUSTOM_FILENAME=\"partitions/v2/16m_anime.csv\"",
+                "CONFIG_LWIP_SNTP_MAX_SERVERS=2"
             ]
         }
     ]
