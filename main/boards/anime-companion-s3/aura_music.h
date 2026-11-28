@@ -10,6 +10,8 @@ struct View {
 };
 extern std::atomic<bool> active, speaker_claimed;
 bool Stop();
+uint32_t PlaybackId();
+bool StopPlayback(uint32_t id);
 void Init();
 void Network(bool connected);
 View Player();

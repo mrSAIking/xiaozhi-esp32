@@ -1,4 +1,7 @@
 #include "afe_audio_engine.h"
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+#include "aura_reference.h"
+#endif
 
 #include <cassert>
 #include <cstring>
@@ -121,6 +124,13 @@ bool AfeAudioEngine::Initialize(AudioCodec* codec, int frame_duration_ms,
         input_format.push_back('R');
     }
 
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    software_reference_ = input_format == "M" && codec_->output_sample_rate() == 24000 && aura_ref::Init();
+    if (software_reference_) input_format += 'R';
+    ESP_LOGI(TAG, "AFE input %s; free internal=%u PSRAM=%u", input_format.c_str(),
+             unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
+             unsigned(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
+#endif
     char* vad_model_name =
         models_ == nullptr ? nullptr : esp_srmodel_filter(models_, ESP_VADN_PREFIX, nullptr);
     afe_config_t* afe_config =
@@ -130,7 +140,7 @@ bool AfeAudioEngine::Initialize(AudioCodec* codec, int frame_duration_ms,
         return false;
     }
 
-    afe_config->aec_init = codec_->input_reference();
+    afe_config->aec_init = (codec_->input_reference() || software_reference_);
     afe_config->aec_mode = AEC_MODE_FD_LOW_COST;
     afe_config->aec_nlp_level = AEC_NLP_LEVEL_VERYAGGR;
     afe_config->ns_init = false;
@@ -204,7 +214,7 @@ bool AfeAudioEngine::Initialize(AudioCodec* codec, int frame_duration_ms,
     if (wake_detector_ == WakeDetector::kWakeNet) {
         afe_iface_->disable_wakenet(afe_data_);
     }
-    if (codec_->input_reference()) {
+    if ((codec_->input_reference() || software_reference_)) {
         afe_iface_->disable_aec(afe_data_);
     }
     afe_iface_->print_pipeline(afe_data_);
@@ -268,8 +278,12 @@ void AfeAudioEngine::Feed(std::vector<int16_t>&& data) {
     if ((xEventGroupGetBits(event_group_) & kAfeActive) == 0) {
         return;
     }
-    input_buffer_.insert(input_buffer_.end(), data.begin(), data.end());
-    size_t chunk_size = afe_iface_->get_feed_chunksize(afe_data_) * codec_->input_channels();
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    if (software_reference_) aura_ref::Interleave(input_buffer_, data);
+    else
+#endif
+        input_buffer_.insert(input_buffer_.end(), data.begin(), data.end());
+    size_t chunk_size = afe_iface_->get_feed_chunksize(afe_data_) * (codec_->input_channels() + software_reference_);
     while (input_buffer_.size() >= chunk_size) {
         afe_iface_->feed(afe_data_, input_buffer_.data());
         input_buffer_.erase(input_buffer_.begin(), input_buffer_.begin() + chunk_size);
@@ -309,7 +323,7 @@ void AfeAudioEngine::EnableVoiceProcessing(bool enable) {
 
 void AfeAudioEngine::EnableDeviceAec(bool enable) {
     device_aec_enabled_.store(enable);
-    if (enable && (codec_ == nullptr || !codec_->input_reference())) {
+    if (enable && (codec_ == nullptr || !(codec_->input_reference() || software_reference_))) {
         ESP_LOGW(TAG, "Device AEC requires a playback reference channel");
     }
     UpdateAecState();
@@ -376,7 +390,7 @@ void AfeAudioEngine::UpdateActiveState() {
 }
 
 void AfeAudioEngine::UpdateAecState() {
-    if (afe_data_ == nullptr || codec_ == nullptr || !codec_->input_reference()) {
+    if (afe_data_ == nullptr || codec_ == nullptr || !(codec_->input_reference() || software_reference_)) {
         return;
     }
     afe_control_dirty_ = true;
@@ -391,7 +405,7 @@ void AfeAudioEngine::ApplyAfeControls() {
             afe_iface_->disable_wakenet(afe_data_);
         }
     }
-    if (codec_->input_reference()) {
+    if ((codec_->input_reference() || software_reference_)) {
         const bool enable_aec = (bits & kWakeWordEnabled) ||
                                 (device_aec_enabled_.load() && (bits & kVoiceProcessingEnabled));
         if (enable_aec) {

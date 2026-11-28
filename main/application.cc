@@ -1,6 +1,7 @@
 #include "application.h"
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
 #include "aura_music.h"
+#include "aura_voice.h"
 #endif
 #include "assets.h"
 #include "assets/lang_config.h"
@@ -313,6 +314,15 @@ void Application::Run() {
         if (bits & MAIN_EVENT_STARTUP_HINT_TIMEOUT) {
             HideStartupWakeWordHint();
         }
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+        if (finish_voice_turn_) {
+            if (GetDeviceState() != kDeviceStateSpeaking) finish_voice_turn_ = false;
+            else if (audio_service_.IsPlaybackIdle() && audio_service_.SpeakerDrained()) {
+                finish_voice_turn_ = false;
+                SetDeviceState(kDeviceStateIdle);
+            }
+        }
+#endif
         ShowStartupWakeWordHint();
     }
 }
@@ -675,6 +685,9 @@ void Application::InitializeProtocol() {
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
                     if(music::speaker_claimed)return;
 #endif
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+                    finish_voice_turn_ = false;
+#endif
                     aborted_ = false;
                     SetDeviceState(kDeviceStateSpeaking);
                 });
@@ -682,6 +695,12 @@ void Application::InitializeProtocol() {
                 Schedule([this, display]() {
                     display->FinishConversationText();
                     if (GetDeviceState() == kDeviceStateSpeaking) {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+                        if (voice::SingleTurn()) {
+                            finish_voice_turn_ = true;
+                            return;
+                        }
+#endif
                         if (listening_mode_ == kListeningModeManualStop) {
                             SetDeviceState(kDeviceStateIdle);
                         } else {
@@ -1499,6 +1518,7 @@ void Application::PrepareMusic(){
     pending_listening_start_=false;
     Board::GetInstance().GetDisplay()->CancelConversationText();
     if(s!=kDeviceStateIdle)SetDeviceState(kDeviceStateIdle);
+    else audio_service_.EnableWakeWordDetection(true);
 }
 bool Application::PrepareForWifiSettings() {
     const auto state = GetDeviceState();

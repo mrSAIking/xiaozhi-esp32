@@ -1,4 +1,7 @@
 #include "no_audio_codec.h"
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+#include "aura_reference.h"
+#endif
 
 #include <esp_log.h>
 #include <cmath>
@@ -242,9 +245,23 @@ int NoAudioCodec::Write(const int16_t* data, int samples) {
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
     previous_gain_ = volume_factor;
 #endif
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    size_t offset = 0;
+    while (offset < buffer.size()) {
+        const auto frames = std::min<size_t>(AUDIO_CODEC_DMA_FRAME_NUM, buffer.size() - offset);
+        size_t bytes = 0;
+        ESP_ERROR_CHECK(i2s_channel_write(tx_handle_, buffer.data() + offset, frames * sizeof(int32_t),
+                                         &bytes, portMAX_DELAY));
+        if (bytes == 0) break;
+        aura_ref::Commit(buffer.data() + offset, bytes / sizeof(int32_t), output_sample_rate_);
+        offset += bytes / sizeof(int32_t);
+    }
+    return offset;
+#else
     size_t bytes_written;
     ESP_ERROR_CHECK(i2s_channel_write(tx_handle_, buffer.data(), samples * sizeof(int32_t), &bytes_written, portMAX_DELAY));
     return bytes_written / sizeof(int32_t);
+#endif
 }
 
 int NoAudioCodec::Read(int16_t* dest, int samples) {

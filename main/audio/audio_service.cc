@@ -1,4 +1,9 @@
 #include "audio_service.h"
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+#include "aura_voice.h"
+#include "aura_music.h"
+#include "aura_reference.h"
+#endif
 #include <esp_log.h>
 #include <cstring>
 
@@ -702,6 +707,9 @@ std::unique_ptr<AudioStreamPacket> AudioService::PopWakeWordPacket() {
 }
 
 void AudioService::EnableWakeWordDetection(bool enable) {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    enable = enable && (voice::Wake() || (voice::MusicCommands() && music::active));
+#endif
     ESP_LOGD(TAG, "%s wake word detection", enable ? "Enabling" : "Disabling");
     if (enable) {
         if (!InitializeAudioEngine()) {
@@ -839,6 +847,7 @@ bool AudioService::IsPlaybackIdle() {
 }
 
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+bool AudioService::SpeakerDrained() { return aura_ref::Drained(); }
 void AudioService::OwnMusicOutput(bool own){
     std::lock_guard lock(audio_queue_mutex_);
     if(music_owned_==own)return;

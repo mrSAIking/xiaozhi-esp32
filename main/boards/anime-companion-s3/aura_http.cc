@@ -4,6 +4,7 @@
 #include "appearance.h"
 #include "aura_search.h"
 #include "aura_music.h"
+#include "aura_voice.h"
 #include "aura_service.h"
 #include "esp_http_server.h"
 #include "esp_netif.h"
@@ -94,6 +95,7 @@ esp_err_t Api(httpd_req_t* r) {
             auto s=cJSON_GetObjectItem(j,"query"),n=cJSON_GetObjectItem(j,"offset");
             page=music::List(cJSON_IsString(s)?s->valuestring:"",cJSON_IsNumber(n)?n->valueint:0,6);
         }else if(cJSON_IsString(action) && !strncmp(action->valuestring,"music_",6))error=music::Command(j);
+        else if (cJSON_IsString(action) && !strcmp(action->valuestring, "voice")) error = voice::Configure(j);
         else if (cJSON_IsString(action) && !strcmp(action->valuestring, "volume")) {
             auto volume = cJSON_GetObjectItemCaseSensitive(j, "volume");
             if (!cJSON_IsNumber(volume) || volume->valuedouble != volume->valueint ||
@@ -120,6 +122,7 @@ esp_err_t Api(httpd_req_t* r) {
     auto* state = page?page:aura::Snapshot(home);
     if(!page){
     cJSON_AddItemToObject(state,"music",music::Status());
+    voice::Snapshot(state);
     aura::AddAppearance(state);
     aura::SearchSnapshot(state, home);
     }

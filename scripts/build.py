@@ -349,6 +349,14 @@ def _wake_word_sdkconfig_options(
         "CONFIG_USE_CUSTOM_WAKE_WORD=n",
     ]
 
+    if normalized == "hey_aura" and target == "esp32s3":
+        symbols = ["CONFIG_USE_CUSTOM_WAKE_WORD", "CONFIG_SR_MN_EN_MULTINET6_QUANT"]
+        options.extend(f"{symbol}=y" for symbol in symbols)
+        options.extend(['CONFIG_CUSTOM_WAKE_WORD="HEY AURA"',
+                        'CONFIG_CUSTOM_WAKE_WORD_DISPLAY="Hey Aura"',
+                        'CONFIG_CUSTOM_WAKE_WORD_THRESHOLD=65'])
+        return normalized, options, symbols
+
     if normalized == "disabled":
         options.append("CONFIG_WAKE_WORD_DISABLED=y")
         return normalized, options, ["CONFIG_WAKE_WORD_DISABLED"]
@@ -1652,6 +1660,8 @@ def build_board(
                 requested_wake_word = (
                     "nihaoxiaozhi" if selected_language in {"zh-CN", "zh-TW"} else "hiesp"
                 )
+        if wake_word is None and final_name == "anime-companion-s3":
+            requested_wake_word = "hey_aura"
         (
             selected_wake_word,
             wake_word_options,

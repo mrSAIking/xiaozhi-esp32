@@ -2,6 +2,11 @@
 #include "audio_service.h"
 #include "system_info.h"
 #include "assets.h"
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+#include "application.h"
+#include "aura_music.h"
+#include "aura_voice.h"
+#endif
 
 #include <esp_log.h>
 #include <esp_mn_iface.h>
@@ -16,6 +21,9 @@ CustomWakeWord::CustomWakeWord()
 }
 
 CustomWakeWord::~CustomWakeWord() {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    voice::Ready(false);
+#endif
     if (multinet_model_data_ != nullptr && multinet_ != nullptr) {
         multinet_->destroy(multinet_model_data_);
         multinet_model_data_ = nullptr;
@@ -104,8 +112,17 @@ bool CustomWakeWord::Initialize(AudioCodec* codec, srmodel_list_t* models_list) 
         return false;
     }
 
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    language_ = "en";
+    commands_ = {{"HEY AURA", "Hey Aura", "wake"}, {"STOP THE SONG", "Stop the song", "stop"},
+                 {"STOP MUSIC", "Stop music", "stop"}, {"STOP PLAYING", "Stop playing", "stop"}};
+    threshold_ = voice::Confidence() / 100.0f;
+#endif
     // 初始化 multinet (命令词识别)
     mn_name_ = esp_srmodel_filter(models_, ESP_MN_PREFIX, language_.c_str());
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    if (!mn_name_ || strcmp(mn_name_, "mn6_en") != 0) return false;
+#endif
     if (mn_name_ == nullptr) {
         ESP_LOGW(TAG, "Language '%s' multinet not found, falling back to any multinet model", language_.c_str());
         mn_name_ = esp_srmodel_filter(models_, ESP_MN_PREFIX, NULL);
@@ -117,14 +134,19 @@ bool CustomWakeWord::Initialize(AudioCodec* codec, srmodel_list_t* models_list) 
     }
 
     multinet_ = esp_mn_handle_from_name(mn_name_);
+    if (!multinet_) return false;
     multinet_model_data_ = multinet_->create(mn_name_, duration_);
+    if (!multinet_model_data_) return false;
     multinet_->set_det_threshold(multinet_model_data_, threshold_);
     input_buffer_.reserve(multinet_->get_samp_chunksize(multinet_model_data_));
-    esp_mn_commands_clear();
+    if (esp_mn_commands_alloc(multinet_, multinet_model_data_) != ESP_OK) return false;
     for (int i = 0; i < commands_.size(); i++) {
-        esp_mn_commands_add(i + 1, commands_[i].command.c_str());
+        if (esp_mn_commands_add(i + 1, commands_[i].command.c_str()) != ESP_OK) return false;
     }
-    esp_mn_commands_update();
+    if (esp_mn_commands_update() != nullptr) return false;
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    voice::Ready(true);
+#endif
     
     multinet_->print_active_speech_commands(multinet_model_data_);
 #if CONFIG_SEND_WAKE_WORD_DATA
@@ -191,6 +213,13 @@ void CustomWakeWord::FeedSamples(const int16_t* data, size_t samples, bool mono)
         input_buffer_.insert(input_buffer_.end(), data, data + samples);
     }
     
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    const float requested = voice::Confidence() / 100.0f;
+    if (threshold_ != requested) {
+        threshold_ = requested;
+        multinet_->set_det_threshold(multinet_model_data_, threshold_);
+    }
+#endif
     int chunksize = multinet_->get_samp_chunksize(multinet_model_data_);
     while (input_buffer_.size() >= chunksize) {
 #if CONFIG_SEND_WAKE_WORD_DATA
@@ -204,7 +233,21 @@ void CustomWakeWord::FeedSamples(const int16_t* data, size_t samples, bool mono)
             for (int i = 0; i < mn_result->num && running_; i++) {
                 ESP_LOGI(TAG, "Custom wake word detected: command_id=%d, string=%s, prob=%f", 
                         mn_result->command_id[i], mn_result->string, mn_result->prob[i]);
-                auto& command = commands_[mn_result->command_id[i] - 1];
+                const int id = mn_result->command_id[i];
+                if (id < 1 || static_cast<size_t>(id) > commands_.size()) continue;
+                auto& command = commands_[id - 1];
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+                if (command.action == "stop") {
+                    if (!voice::MusicCommands() || !music::active) continue;
+                    const auto playback = music::PlaybackId();
+                    Application::GetInstance().Schedule([playback, id] {
+                        if (voice::MusicCommands() && music::StopPlayback(playback)) voice::Detected(id);
+                    });
+                    break;
+                }
+                if (!voice::Wake() || (music::active && !voice::MusicCommands())) continue;
+                voice::Detected(id);
+#endif
                 if (command.action == "wake") {
                     last_detected_wake_word_ = command.text;
                     running_ = false;

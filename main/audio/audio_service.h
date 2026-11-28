@@ -133,6 +133,7 @@ public:
     bool IsIdle();
     bool IsPlaybackIdle();
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    bool SpeakerDrained();
     void OwnMusicOutput(bool own);
     bool QueueMusic(std::vector<int16_t>&& pcm);
     uint32_t MusicTimeMs();

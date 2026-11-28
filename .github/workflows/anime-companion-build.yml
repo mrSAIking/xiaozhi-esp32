@@ -37,6 +37,8 @@ jobs:
           /tmp/test-ui
           g++ -std=c++17 -Imain/boards/anime-companion-s3 scripts/tests/aura_controls_test.cc -o /tmp/test-controls
           /tmp/test-controls
+          g++ -std=c++17 -Imain/boards/anime-companion-s3 scripts/tests/aura_reference_test.cc -o /tmp/test-reference
+          /tmp/test-reference
       - name: Render and verify desktop previews
         if: matrix.spi_mhz == 10
         run: |
@@ -79,6 +81,8 @@ jobs:
           grep -Fx CONFIG_ANIME_ARM_PERIOD_MS=4000 sdkconfig
           grep -Fx CONFIG_ANIME_RIGHT_ARM_PERIOD_MS=4500 sdkconfig
           grep -Fx CONFIG_ANIME_SPI_MHZ=${{ matrix.spi_mhz }} sdkconfig
+          grep -Fx CONFIG_USE_CUSTOM_WAKE_WORD=y sdkconfig
+          grep -Fx CONFIG_SR_MN_EN_MULTINET6_QUANT=y sdkconfig
           grep -Fx CONFIG_ESP_BROWNOUT_DET=y sdkconfig
           grep -Fx CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y sdkconfig
           grep -Fx CONFIG_ESP_COREDUMP_ENABLE_TO_UART=y sdkconfig

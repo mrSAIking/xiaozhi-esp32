@@ -189,6 +189,16 @@ void run(void*) {
     vTaskDelete(nullptr);
 }
 }  // namespace
+uint32_t PlaybackId() {
+    std::lock_guard lock(mu);
+    return active ? play_id : 0;
+}
+bool StopPlayback(uint32_t id) {
+    std::lock_guard lock(mu);
+    if (!active || !id || play_id != id) return false;
+    stopLocked();
+    return true;
+}
 bool Stop() {
     std::lock_guard lock(mu);
     bool was = active;
