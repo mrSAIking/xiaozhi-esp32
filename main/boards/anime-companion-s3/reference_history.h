@@ -9,7 +9,11 @@ struct ReferenceHistory {
     int16_t samples[capacity]{};
     int64_t begin = 0, end = 0;
     void append(int64_t first, const int32_t* pcm, size_t n) {
-        if (first != end) begin = first;
+        if (first < end || first - end >= capacity) {
+            begin = first;
+        } else {
+            for (auto pos = end; pos < first; ++pos) samples[pos % capacity] = 0;
+        }
         for (size_t i = 0; i < n; ++i) samples[(first + i) % capacity] = pcm[i] >> 16;
         end = first + n;
         begin = std::max(begin, end - capacity);

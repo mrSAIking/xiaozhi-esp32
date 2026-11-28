@@ -1013,7 +1013,9 @@ void Application::HandleWakeWordDetectedEvent() {
 
 void Application::BeginWakeWordInvoke(const std::string& wake_word) {
     // Must run in the main task with the device in idle state
+#if CONFIG_SEND_WAKE_WORD_DATA
     audio_service_.EncodeWakeWord();
+#endif
 
     // Always pass through the connecting state, even if the audio channel is
     // already opened. ContinueWakeWordInvoke() rejects any other state, so
@@ -1335,6 +1337,9 @@ void Application::SetListeningMode(ListeningMode mode) {
 }
 
 ListeningMode Application::GetDefaultListeningMode() const {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+    if (voice::SingleTurn()) return kListeningModeAutoStop;
+#endif
     return aec_mode_ == kAecOff ? kListeningModeAutoStop : kListeningModeRealtime;
 }
 
@@ -1509,8 +1514,8 @@ void Application::SetAecMode(AecMode mode) {
 void Application::PlaySound(const std::string_view& sound) { audio_service_.PlaySound(sound); }
 
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
-void Application::PrepareMusic(){
-    if(!music::active)return;
+void Application::PrepareMusic(bool interrupted){
+    if(!interrupted && !music::active)return;
     auto s=GetDeviceState();
     if(s==kDeviceStateSpeaking)AbortSpeaking(kAbortReasonNone);
     if(s==kDeviceStateNotifying)StopNotification();

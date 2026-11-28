@@ -2,6 +2,8 @@
 import csv
 import json
 import sys
+import struct
+from build_default_assets import read_assets_entries
 from pathlib import Path
 
 
@@ -38,6 +40,26 @@ def check(build, table):
             raise ValueError(f"Merged firmware is missing {path} at {offset}")
         by_offset[start] = len(data)
 
+    asset_path = next(build / path for offset, path in flashed.items()
+                      if int(offset, 0) == slots["assets"][0])
+    entries = read_assets_entries(asset_path)
+    index = json.loads(entries["index.json"][0])
+    bank = entries[index["srmodels"]][0]
+    count, = struct.unpack_from("<I", bank)
+    names = set()
+    offset = 4
+    for _ in range(count):
+        model, files = struct.unpack_from("<32sI", bank, offset)
+        names.add(model.rstrip(b"\0").decode("ascii"))
+        offset += 36
+        for _ in range(files):
+            _, start, length = struct.unpack_from("<32sII", bank, offset)
+            if not length or start + length > len(bank):
+                raise ValueError("Invalid speech model payload")
+            offset += 40
+    if names != {"mn6_en", "fst"}:
+        raise ValueError(f"Unexpected voice recognition model bank: {names}")
+    print(f"- English MultiNet6 and FST: {len(bank):,} bytes")
     app = by_offset[slots["ota_0"][0]]
     assets = by_offset[slots["assets"][0]]
     for name, used in (("ota_0", app), ("ota_1", app), ("assets", assets)):

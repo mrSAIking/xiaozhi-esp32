@@ -133,7 +133,7 @@ public:
      */
     void ResetProtocol();
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
-    void PrepareMusic();
+    void PrepareMusic(bool interrupted = false);
     bool PrepareForWifiSettings();  // application task only
 #endif
 

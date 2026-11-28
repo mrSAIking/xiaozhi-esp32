@@ -29,7 +29,7 @@ void Snapshot(cJSON* state) {
     cJSON_AddNumberToObject(v, "confidence", Confidence());
     cJSON_AddStringToObject(v, "phrase", ready ? phrases[1] : "Unavailable");
     cJSON_AddStringToObject(v, "last", phrases[last.load()]);
-    const bool running = Application::GetInstance().GetAudioService().IsWakeWordRunning();
+    const bool running = ready && Application::GetInstance().GetAudioService().IsWakeWordRunning();
     cJSON_AddStringToObject(v, "status", !ready ? "Model inactive" : running ? "Monitoring" : "Paused");
 }
 const char* Configure(const cJSON* request) {

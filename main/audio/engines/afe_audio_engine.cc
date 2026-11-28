@@ -83,6 +83,11 @@ bool AfeAudioEngine::Initialize(AudioCodec* codec, int frame_duration_ms,
         }
     }
 
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3 && CONFIG_USE_CUSTOM_WAKE_WORD
+    // An OTA may retain an older WakeNet asset bank. Preserve manual capture.
+    if (!multinet_model_name) ESP_LOGW(TAG, "English MultiNet asset missing; manual activation available");
+    wakenet_model_name = nullptr;
+#endif
     if (multinet_model_name != nullptr) {
         wake_detector_ = WakeDetector::kMultiNet;
         custom_wake_word_ = std::make_unique<CustomWakeWord>();
@@ -98,7 +103,9 @@ bool AfeAudioEngine::Initialize(AudioCodec* codec, int frame_duration_ms,
             ESP_LOGE(TAG, "Failed to initialize MultiNet wake-word detector");
             custom_wake_word_.reset();
             wake_detector_ = WakeDetector::kNone;
+#if !CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
             return false;
+#endif
         }
     } else if (wakenet_model_name != nullptr) {
         wake_detector_ = WakeDetector::kWakeNet;

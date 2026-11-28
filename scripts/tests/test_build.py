@@ -1621,7 +1621,13 @@ class LanguageBuildTests(unittest.TestCase):
                         )
                         validate.assert_any_call([expected.split("=", 1)[0]], "--language")
                         models = [item for item in fragment if item.startswith("CONFIG_SR_WN_")]
-                        if variant["wake_word_supported"]:
+                        if variant["name"] == "anime-companion-s3":
+                            self.assertEqual(models, [])
+                            self.assertIn("CONFIG_SR_MN_EN_MULTINET6_QUANT=y", fragment)
+                            self.assertIn('CONFIG_CUSTOM_WAKE_WORD="HEY AURA"', fragment)
+                            validate.assert_any_call(["CONFIG_USE_CUSTOM_WAKE_WORD",
+                                                      "CONFIG_SR_MN_EN_MULTINET6_QUANT"], "--wake-word")
+                        elif variant["wake_word_supported"]:
                             chinese = language in {"zh-CN", "zh-TW"}
                             if target in {"esp32c3", "esp32c5", "esp32c6"}:
                                 model = "WN9S_NIHAOXIAOZHI" if chinese else "WN9S_HIESP"

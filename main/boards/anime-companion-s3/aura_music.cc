@@ -109,6 +109,9 @@ const char* play(const std::string& name) {
     active = true;
     state = "Connecting";
     ++play_id;
+    Application::GetInstance().Schedule([id = play_id] {
+        if (PlaybackId() == id) audio().EnableWakeWordDetection(true);
+    });
     return nullptr;
 }
 void run(void*) {
@@ -154,6 +157,11 @@ void run(void*) {
             speaker_claimed = false;
             state = cancel ? "Idle" : err ? "Error" : "Completed";
             error = cancel || !err ? "" : err;
+            Application::GetInstance().Schedule([] {
+                auto& app = Application::GetInstance();
+                if (!active && app.GetDeviceState() == kDeviceStateIdle)
+                    app.GetAudioService().EnableWakeWordDetection(true);
+            });
         } else if (enabled && network && refresh) {
             auto target = url;
             auto version = generation;

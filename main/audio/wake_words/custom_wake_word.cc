@@ -6,6 +6,7 @@
 #include "application.h"
 #include "aura_music.h"
 #include "aura_voice.h"
+#include "voice_policy.h"
 #endif
 
 #include <esp_log.h>
@@ -175,6 +176,11 @@ std::vector<std::string> CustomWakeWord::GetWakeWords() const {
 }
 
 void CustomWakeWord::Start() {
+    std::lock_guard<std::mutex> lock(input_buffer_mutex_);
+    if (!running_ && multinet_model_data_) {
+        input_buffer_.clear();
+        multinet_->clean(multinet_model_data_);
+    }
     running_ = true;
 }
 
@@ -230,22 +236,30 @@ void CustomWakeWord::FeedSamples(const int16_t* data, size_t samples, bool mono)
         
         if (mn_state == ESP_MN_STATE_DETECTED) {
             esp_mn_results_t *mn_result = multinet_->get_results(multinet_model_data_);
-            for (int i = 0; i < mn_result->num && running_; i++) {
+#if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+            // Do not promote an alternative hypothesis when the best phrase is disabled.
+            const int candidates = mn_result && mn_result->num > 0 ? 1 : 0;
+#else
+            const int candidates = mn_result ? mn_result->num : 0;
+#endif
+            for (int i = 0; i < candidates && running_; i++) {
                 ESP_LOGI(TAG, "Custom wake word detected: command_id=%d, string=%s, prob=%f", 
                         mn_result->command_id[i], mn_result->string, mn_result->prob[i]);
                 const int id = mn_result->command_id[i];
                 if (id < 1 || static_cast<size_t>(id) > commands_.size()) continue;
                 auto& command = commands_[id - 1];
 #if CONFIG_BOARD_TYPE_ANIME_COMPANION_S3
+                if (!voice::Accept(id, voice::Wake(), voice::MusicCommands(), music::active)) continue;
                 if (command.action == "stop") {
-                    if (!voice::MusicCommands() || !music::active) continue;
                     const auto playback = music::PlaybackId();
                     Application::GetInstance().Schedule([playback, id] {
-                        if (voice::MusicCommands() && music::StopPlayback(playback)) voice::Detected(id);
+                        if (voice::MusicCommands() && music::StopPlayback(playback)) {
+                            voice::Detected(id);
+                            Application::GetInstance().PrepareMusic(true);
+                        }
                     });
                     break;
                 }
-                if (!voice::Wake() || (music::active && !voice::MusicCommands())) continue;
                 voice::Detected(id);
 #endif
                 if (command.action == "wake") {

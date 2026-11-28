@@ -354,7 +354,7 @@ def _wake_word_sdkconfig_options(
         options.extend(f"{symbol}=y" for symbol in symbols)
         options.extend(['CONFIG_CUSTOM_WAKE_WORD="HEY AURA"',
                         'CONFIG_CUSTOM_WAKE_WORD_DISPLAY="Hey Aura"',
-                        'CONFIG_CUSTOM_WAKE_WORD_THRESHOLD=65'])
+                        "CONFIG_SEND_WAKE_WORD_DATA=n", "CONFIG_CUSTOM_WAKE_WORD_THRESHOLD=65"])
         return normalized, options, symbols
 
     if normalized == "disabled":

@@ -1,0 +1,14 @@
+# Voice control on anime-companion-s3
+
+The default build packages ESP-SR English MultiNet6 and its FST in the assets partition. The device installs four English grapheme commands at initialization and checks that ESP-SR accepts the grammar. A stock WakeNet model for a different phrase cannot recognize a new phrase by changing its display name. A dedicated WakeNet alternative would require a trained Hey Aura model from Espressif and separate validation. See [MultiNet commands](https://docs.espressif.com/projects/esp-sr/en/latest/esp32s3/speech_command_recognition/README.html) and [WakeNet customization](https://docs.espressif.com/projects/esp-sr/en/latest/esp32s3/wake_word_engine/README.html).
+
+Use a merged image with the matching assets bank. An app-only update from the older WakeNet build can leave the wrong model in flash. The Voice Control page shows engine availability and the last accepted command. Local recognition requires no server connection. Asking a question still requires activation and a working server. Confidence is the minimum accepted MultiNet score, adjustable from 40 to 95 percent. BOOT provides manual control.
+
+The AFE receives the existing mono 16 kHz microphone channel and a software reference derived from the mono 24 kHz samples accepted by the existing I2S TX channel after the volume ramp, scaling and clipping. A bounded PSRAM history holds 8192 signed samples (16 KiB plus bookkeeping). Reference lookup interpolates at 16 kHz using estimated speaker times. Separate I2S clocks, RX latency, scheduling jitter, room reflections and speaker clipping all affect cancellation. The estimated DMA tail is not a measurement of acoustic latency.
+
+## Physical acceptance
+
+1. After activation and after a reboot, verify idle has no green capture indicator or conversational microphone traffic. Say Hey Aura, ask a question, and wait for its last syllable. Verify idle resumes and a second question needs another wake. Repeat with the single-turn setting disabled and with BOOT.
+2. For each of connecting, buffering and playing, try each stop phrase and Hey Aura. Check that the stream and CD stop, the avatar returns, and only Hey Aura starts capture. Repeat with wake disabled, interruption disabled and both disabled.
+3. At 25, 50 and 75 percent speaker volume, log ten trials per phrase over instrumental music, vocals and silence, with distance fixed. Include negative trials with no human speech and recordings containing the commands. Record misses, false accepts and stop latency. Very loud or distorted playback may resemble a live command.
+4. Record free and minimum internal heap, largest contiguous block and PSRAM before and after model/AFE startup and during a long stream. Repeat play/stop/reconnect cycles. Verify audio and animation continuity. Restore defaults in the portal and power-cycle to verify NVS.
